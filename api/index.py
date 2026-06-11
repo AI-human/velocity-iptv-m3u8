@@ -201,8 +201,8 @@ HTML_TEMPLATE = """
         <div class="controls">
             <span id="current-channel-title" style="font-weight:600;">Select a channel</span>
             <div class="btn-group">
-                <a id="vlc-intent-link" href="#" class="btn">VLC Android</a>
-                <a id="vlc-direct-link" href="#" class="btn btn-green">VLC (Direct M3U8)</a>
+                <a id="generic-intent-link" href="#" class="btn">Play in Player</a>
+                <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Direct Stream URL</a>
                 <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Get M3U Playlist</a>
             </div>
         </div>
@@ -220,12 +220,14 @@ HTML_TEMPLATE = """
         function playStream(url, name, cardElement, shouldPlay = true) {
             document.getElementById('current-channel-title').innerText = name;
             
-            // Scheme 1: Intent URL (Ideal for browsers on mobile to launch VLC package)
+            // Scheme 1: Generic Intent URL (Ideal for launching any installed video player on Android/TV)
+            const isHttps = url.startsWith('https://');
             const streamUrlNoProtocol = url.replace(/^https?:\/\//, '');
-            document.getElementById('vlc-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=http;type=video/*;package=org.videolan.vlc;end`;
+            const scheme = isHttps ? 'https' : 'http';
+            document.getElementById('generic-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=${scheme};type=video/*;end`;
             
-            // Scheme 2: Direct vlc:// protocol URL (Works on many systems/TVs where VLC handler is registered)
-            document.getElementById('vlc-direct-link').href = `vlc://${url}`;
+            // Scheme 2: Direct link to the raw .m3u8 file (allows custom launchers/browsers to open it)
+            document.getElementById('direct-stream-link').href = url;
             
             if (activeCard) activeCard.classList.remove('active');
             cardElement.classList.add('active');
