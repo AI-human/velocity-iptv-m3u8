@@ -25,7 +25,7 @@ def add_header(response):
     return response
 
 def scrape_fresh_tokens():
-    """Scrapes the live website to retrieve the latest tokenized m3u8 stream URLs."""
+    """Scrapes the live website and parses the channels JSON array to get fresh play URLs."""
     url = "https://ajobtv.com/"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -36,22 +36,16 @@ def scrape_fresh_tokens():
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             html_content = response.text
-            
-            # Method 1: Parse standard video/source elements
-            soup = BeautifulSoup(html_content, 'html.parser')
-            for element in soup.find_all(['source', 'video', 'iframe']):
-                src = element.get('src') or element.get('data-src')
-                if src and '.m3u8' in src:
-                    base = src.split('?')[0]
-                    found_urls[base] = src
-            
-            # Method 2: Regex scanning (for javascript configuration blocks)
-            regex_pattern = r'(https?://[^\s"\'\`]+\.m3u8(?:[^\s"\'\`]*)?)'
-            matches = re.findall(regex_pattern, html_content)
-            for match in matches:
-                clean_url = match.replace('\\/', '/')
-                base = clean_url.split('?')[0]
-                found_urls[base] = clean_url
+            # Extract the channels array definition from the inline javascript script block
+            match = re.search(r'const\s+channels\s*=\s*(\[[\s\S]*?\]);', html_content)
+            if match:
+                channels_data = json.loads(match.group(1))
+                for ch in channels_data:
+                    stream_source = ch.get("stream_source")
+                    play_url = ch.get("play_url")
+                    if stream_source and play_url:
+                        base = stream_source.split('?')[0]
+                        found_urls[base] = play_url
     except Exception as e:
         print(f"Error scraping tokens: {e}")
         
