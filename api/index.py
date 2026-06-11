@@ -196,13 +196,17 @@ HTML_TEMPLATE = """
         <p>Stream directly in browser or open via VLC / IPTV apps</p>
     </div>
 
-    <div class="player-wrapper">
+    <div class="player-wrapper" id="player-wrapper" style="display: none;">
         <video id="video" controls playsinline></video>
-        <div class="controls">
-            <span id="current-channel-title" style="font-weight:600;">Select a channel</span>
+    </div>
+
+    <div style="max-width: 800px; margin: 0 auto 25px auto; background: #1c1c1e; border-radius: 12px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div class="controls" style="padding: 0; background: transparent;">
+            <span id="current-channel-title" style="font-weight:600; font-size: 16px;">Select a channel</span>
             <div class="btn-group">
                 <a id="generic-intent-link" href="#" class="btn">Play in Player</a>
                 <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Direct Stream URL</a>
+                <button id="play-browser-btn" class="btn btn-secondary">Play in Browser</button>
                 <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Get M3U Playlist</a>
             </div>
         </div>
@@ -212,12 +216,17 @@ HTML_TEMPLATE = """
 
     <script>
         const video = document.getElementById('video');
-        const hls = new Hls({
-            maxMaxBufferLength: 10
-        });
+        const playerWrapper = document.getElementById('player-wrapper');
+        const playBrowserBtn = document.getElementById('play-browser-btn');
+        let hls = null;
         let activeCard = null;
+        let currentUrl = "";
+        let currentName = "";
+        let isPlayerLoaded = false;
 
-        function playStream(url, name, cardElement, shouldPlay = true) {
+        function selectChannel(url, name, cardElement) {
+            currentUrl = url;
+            currentName = name;
             document.getElementById('current-channel-title').innerText = name;
             
             // Scheme 1: Generic Intent URL (Ideal for launching any installed video player on Android/TV)
@@ -226,28 +235,49 @@ HTML_TEMPLATE = """
             const scheme = isHttps ? 'https' : 'http';
             document.getElementById('generic-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=${scheme};type=video/*;end`;
             
-            // Scheme 2: Direct link to the raw .m3u8 file (allows custom launchers/browsers to open it)
+            // Scheme 2: Direct link to the raw .m3u8 file
             document.getElementById('direct-stream-link').href = url;
             
             if (activeCard) activeCard.classList.remove('active');
             cardElement.classList.add('active');
             activeCard = cardElement;
 
+            // If browser player was already activated, switch the active stream
+            if (isPlayerLoaded) {
+                loadBrowserPlayer(url);
+            }
+        }
+
+        function loadBrowserPlayer(url) {
+            playerWrapper.style.display = "block";
+            isPlayerLoaded = true;
+
+            if (hls) {
+                hls.destroy();
+            }
+
             if (Hls.isSupported()) {
+                hls = new Hls({
+                    maxMaxBufferLength: 10
+                });
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    if (shouldPlay) {
-                        video.play().catch(e => console.log("Auto-play blocked: ", e));
-                    }
+                    video.play().catch(e => console.log("Play blocked: ", e));
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
-                if (shouldPlay) {
-                    video.play().catch(e => console.log("Auto-play blocked: ", e));
-                }
+                video.play().catch(e => console.log("Play blocked: ", e));
             }
         }
+
+        playBrowserBtn.onclick = () => {
+            if (currentUrl) {
+                loadBrowserPlayer(currentUrl);
+            } else {
+                alert("Please select a channel first!");
+            }
+        };
 
         async function init() {
             const res = await fetch('/api/channels');
@@ -267,11 +297,11 @@ HTML_TEMPLATE = """
                     <img src="${logoUrl}" alt="${ch.name}" onerror="this.src='https://via.placeholder.com/150/1c1c1e/ffffff?text=${encodeURIComponent(ch.name)}'">
                     <div class="card-name">${ch.name}</div>
                 `;
-                card.onclick = () => playStream(ch.url, ch.name, card, true);
+                card.onclick = () => selectChannel(ch.url, ch.name, card);
                 grid.appendChild(card);
                 
                 if (idx === 0) {
-                    playStream(ch.url, ch.name, card, false);
+                    selectChannel(ch.url, ch.name, card);
                 }
             });
         }
