@@ -321,7 +321,7 @@ HTML_TEMPLATE = """
             document.getElementById('current-channel-title').innerText = name;
             
             var isHttps = url.indexOf('https://') === 0;
-            var streamUrlNoProtocol = url.replace(/^https?:\/\//, '');
+            var streamUrlNoProtocol = url.replace(/^https?:\\/\\//, '');
             var scheme = isHttps ? 'https' : 'http';
             document.getElementById('generic-intent-link').href = 'intent://' + streamUrlNoProtocol + '#Intent;scheme=' + scheme + ';type=video/*;end';
             document.getElementById('direct-stream-link').href = url;
@@ -380,9 +380,9 @@ HTML_TEMPLATE = """
                 card.className = 'card';
                 card.id = 'channel-card-' + (ch.id || idx);
                 var logoUrl = ch.logo && ch.logo.indexOf('./') !== 0 ? ch.logo : 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name);
-                var safeName = ch.name.replace(/'/g, "\\'");
+                var safeName = ch.name.replace(/'/g, "\\\\'");
                 card.innerHTML = 
-                    '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="handleImageError(this, \'' + safeName + '\')">' +
+                    '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="handleImageError(this, \\\'' + safeName + '\\\')">' +
                     '<div class="card-name">' + ch.name + '</div>';
                 
                 card.onclick = function() { selectChannel(ch.url, ch.name, card); };
@@ -405,7 +405,7 @@ HTML_TEMPLATE = """
                         currentName = ch.name;
                         
                         var isHttps = ch.url.indexOf('https://') === 0;
-                        var streamUrlNoProtocol = ch.url.replace(/^https?:\/\//, '');
+                        var streamUrlNoProtocol = ch.url.replace(/^https?:\\/\\//, '');
                         var scheme = isHttps ? 'https' : 'http';
                         document.getElementById('generic-intent-link').href = 'intent://' + streamUrlNoProtocol + '#Intent;scheme=' + scheme + ';type=video/*;end';
                         document.getElementById('direct-stream-link').href = ch.url;
