@@ -5,6 +5,14 @@ from flask import Flask, Response, jsonify, render_template_string
 
 app = Flask(__name__)
 
+# Prevent caching of all responses
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 # Path to the local HTML file in the project root
 HTML_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "IPTV Player.html")
 
@@ -205,7 +213,7 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="player-wrapper">
-        <video id="video" controls autoplay playsinline></video>
+        <video id="video" controls playsinline></video>
         <div class="controls">
             <span id="current-channel-title" style="font-weight:600;">Select a channel</span>
             <div style="display: flex; gap: 10px;">
@@ -224,7 +232,7 @@ HTML_TEMPLATE = """
         });
         let activeCard = null;
 
-        function playStream(url, name, cardElement) {
+        function playStream(url, name, cardElement, shouldPlay = true) {
             document.getElementById('current-channel-title').innerText = name;
             
             // Set VLC Intent Link
@@ -239,11 +247,15 @@ HTML_TEMPLATE = """
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    video.play().catch(e => console.log("Auto-play blocked: ", e));
+                    if (shouldPlay) {
+                        video.play().catch(e => console.log("Auto-play blocked: ", e));
+                    }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
-                video.play().catch(e => console.log("Auto-play blocked: ", e));
+                if (shouldPlay) {
+                    video.play().catch(e => console.log("Auto-play blocked: ", e));
+                }
             }
         }
 
@@ -265,11 +277,11 @@ HTML_TEMPLATE = """
                     <img src="${logoUrl}" alt="${ch.name}" onerror="this.src='https://via.placeholder.com/150/1c1c1e/ffffff?text=${encodeURIComponent(ch.name)}'">
                     <div class="card-name">${ch.name}</div>
                 `;
-                card.onclick = () => playStream(ch.url, ch.name, card);
+                card.onclick = () => playStream(ch.url, ch.name, card, true);
                 grid.appendChild(card);
                 
                 if (idx === 0) {
-                    playStream(ch.url, ch.name, card);
+                    playStream(ch.url, ch.name, card, false);
                 }
             });
         }
