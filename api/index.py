@@ -1,10 +1,22 @@
 import os
+import re
 import json
+import time
+import requests
+from bs4 import BeautifulSoup
 from flask import Flask, Response, jsonify, render_template_string
 
 app = Flask(__name__)
 
-# Prevent caching of all responses
+# Cache tokens in memory for 10 minutes (600 seconds) to ensure speed and prevent rate-limiting
+CACHE_EXPIRY = 600  
+cached_channels = None
+last_cache_time = 0
+
+# Path to the pre-generated JSON file
+JSON_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "channels.json")
+
+# Prevent caching of all responses in the client/browser
 @app.after_request
 def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
@@ -12,17 +24,72 @@ def add_header(response):
     response.headers['Expires'] = '0'
     return response
 
-# Path to the pre-generated JSON file
-JSON_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "channels.json")
+def scrape_fresh_tokens():
+    """Scrapes the live website to retrieve the latest tokenized m3u8 stream URLs."""
+    url = "https://ajobtv.com/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    found_urls = {}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            html_content = response.text
+            
+            # Method 1: Parse standard video/source elements
+            soup = BeautifulSoup(html_content, 'html.parser')
+            for element in soup.find_all(['source', 'video', 'iframe']):
+                src = element.get('src') or element.get('data-src')
+                if src and '.m3u8' in src:
+                    base = src.split('?')[0]
+                    found_urls[base] = src
+            
+            # Method 2: Regex scanning (for javascript configuration blocks)
+            regex_pattern = r'(https?://[^\s"\'\`]+\.m3u8(?:[^\s"\'\`]*)?)'
+            matches = re.findall(regex_pattern, html_content)
+            for match in matches:
+                clean_url = match.replace('\\/', '/')
+                base = clean_url.split('?')[0]
+                found_urls[base] = clean_url
+    except Exception as e:
+        print(f"Error scraping tokens: {e}")
+        
+    return found_urls
 
 def load_channels():
+    global cached_channels, last_cache_time
+    
+    current_time = time.time()
+    # Return memory cache if it's still valid
+    if cached_channels and (current_time - last_cache_time < CACHE_EXPIRY):
+        return cached_channels
+
+    # Load base channels list
+    channels = []
     if os.path.exists(JSON_FILE_PATH):
         try:
             with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                # Deep copy to prevent mutating the original reference
+                channels = json.load(f)
         except Exception as e:
-            print(f"Error reading JSON: {e}")
-    return []
+            print(f"Error reading JSON database: {e}")
+            return []
+
+    # Fetch fresh tokenized URLs
+    fresh_links = scrape_fresh_tokens()
+    
+    # Merge fresh tokens into our channel structure matching by base stream path
+    for ch in channels:
+        base_url = ch["url"].split('?')[0]
+        if base_url in fresh_links:
+            ch["url"] = fresh_links[base_url]
+
+    # Save to cache
+    cached_channels = channels
+    last_cache_time = current_time
+    
+    return channels
 
 @app.route("/api/channels")
 def get_channels():
