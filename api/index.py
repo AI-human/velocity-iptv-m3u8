@@ -78,6 +78,11 @@ def load_channels():
         base_url = ch["url"].split('?')[0]
         if base_url in fresh_links:
             ch["url"] = fresh_links[base_url]
+            
+        # Fix logo URL dynamically to use the live CDN path
+        if ch.get("logo"):
+            logo_file = os.path.basename(ch["logo"])
+            ch["logo"] = f"https://ajobtv.com/assets/images/channels/{logo_file}"
 
     # Save to cache
     cached_channels = channels
