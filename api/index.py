@@ -16,9 +16,14 @@ last_cache_time = 0
 # Path to the pre-generated JSON file
 JSON_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "channels.json")
 
-# Prevent caching of all responses in the client/browser
+# Prevent caching of all responses in the client/browser except static assets (logos)
 @app.after_request
 def add_header(response):
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+        response.headers.pop('Pragma', None)
+        response.headers.pop('Expires', None)
+        return response
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
@@ -310,6 +315,7 @@ HTML_TEMPLATE = """
         };
 
         function selectChannel(url, name, cardElement) {
+            if (!url) return;
             currentUrl = url;
             currentName = name;
             document.getElementById('current-channel-title').innerText = name;
