@@ -4,7 +4,7 @@ import json
 import time
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, Response, jsonify, render_template_string
+from flask import Flask, Response, jsonify, render_template_string, request
 
 app = Flask(__name__)
 
@@ -79,10 +79,10 @@ def load_channels():
         if base_url in fresh_links:
             ch["url"] = fresh_links[base_url]
             
-        # Fix logo URL dynamically to use the live CDN path
+        # Fix logo URL dynamically to use our own hosted static logos
         if ch.get("logo"):
             logo_file = os.path.basename(ch["logo"])
-            ch["logo"] = f"https://ajobtv.com/assets/images/channels/{logo_file}"
+            ch["logo"] = f"{request.host_url}static/logos/{logo_file}"
 
     # Save to cache
     cached_channels = channels
@@ -346,18 +346,52 @@ HTML_TEMPLATE = """
         };
 
         async function init() {
-            const res = await fetch('/api/channels');
-            const channels = await res.json();
             const grid = document.getElementById('channels-grid');
             
-            if (channels.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No channels found. Please upload/check IPTV Player.html</div>';
-                return;
+            // 1. Try to load from localStorage first for instant display
+            const cachedData = localStorage.getItem('iptv_channels');
+            let hasLoadedFromCache = false;
+            if (cachedData) {
+                try {
+                    const channels = JSON.parse(cachedData);
+                    if (channels && channels.length > 0) {
+                        renderChannels(channels);
+                        hasLoadedFromCache = true;
+                    }
+                } catch (e) {
+                    console.error("Error parsing cached channels", e);
+                }
             }
 
+            // 2. Fetch fresh channels from Vercel in the background to update tokens/logo
+            try {
+                const res = await fetch('/api/channels');
+                const channels = await res.json();
+                if (channels && channels.length > 0) {
+                    localStorage.setItem('iptv_channels', JSON.stringify(channels));
+                    // If we didn't have cache, render the list now. Otherwise update the URLs silently.
+                    if (!hasLoadedFromCache) {
+                        renderChannels(channels);
+                    } else {
+                        updateChannelUrls(channels);
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching fresh channels", e);
+                if (!hasLoadedFromCache) {
+                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Failed to load channels.</div>';
+                }
+            }
+        }
+
+        function renderChannels(channels) {
+            const grid = document.getElementById('channels-grid');
+            grid.innerHTML = ''; // Clear loading/existing grid
+            
             channels.forEach((ch, idx) => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                card.id = `channel-card-${ch.id || idx}`;
                 const logoUrl = ch.logo && !ch.logo.startsWith('./') ? ch.logo : 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name);
                 card.innerHTML = `
                     <img src="${logoUrl}" alt="${ch.name}" onerror="this.src='https://via.placeholder.com/150/1c1c1e/ffffff?text=${encodeURIComponent(ch.name)}'">
@@ -366,8 +400,34 @@ HTML_TEMPLATE = """
                 card.onclick = () => selectChannel(ch.url, ch.name, card);
                 grid.appendChild(card);
                 
-                if (idx === 0) {
+                if (idx === 0 && !activeCard) {
                     selectChannel(ch.url, ch.name, card);
+                }
+            });
+        }
+
+        function updateChannelUrls(channels) {
+            channels.forEach((ch, idx) => {
+                const card = document.getElementById(`channel-card-${ch.id || idx}`);
+                if (card) {
+                    // Update click action to use new tokenized URL
+                    card.onclick = () => selectChannel(ch.url, ch.name, card);
+                    
+                    // If this was the active card, update the current play links
+                    if (card.classList.contains('active')) {
+                        currentUrl = ch.url;
+                        currentName = ch.name;
+                        
+                        const isHttps = ch.url.startsWith('https://');
+                        const streamUrlNoProtocol = ch.url.replace(/^https?:\/\//, '');
+                        const scheme = isHttps ? 'https' : 'http';
+                        document.getElementById('generic-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=${scheme};type=video/*;end`;
+                        document.getElementById('direct-stream-link').href = ch.url;
+                        
+                        if (isPlayerLoaded) {
+                            loadBrowserPlayer(ch.url);
+                        }
+                    }
                 }
             });
         }
