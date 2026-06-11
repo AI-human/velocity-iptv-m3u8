@@ -1,6 +1,5 @@
 import os
-import re
-from bs4 import BeautifulSoup
+import json
 from flask import Flask, Response, jsonify, render_template_string
 
 app = Flask(__name__)
@@ -13,42 +12,17 @@ def add_header(response):
     response.headers['Expires'] = '0'
     return response
 
-# Path to the local HTML file in the project root
-HTML_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "IPTV Player.html")
+# Path to the pre-generated JSON file
+JSON_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "channels.json")
 
 def load_channels():
-    channels = []
-    if not os.path.exists(HTML_FILE_PATH):
-        return channels
-        
-    try:
-        with open(HTML_FILE_PATH, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        soup = BeautifulSoup(content, 'html.parser')
-        cards = soup.find_all(class_='channel-card')
-        
-        for card in cards:
-            name = card.get('data-name')
-            url = card.get('data-url')
-            # Extract logo image if present, otherwise default to placeholder
-            img_tag = card.find('img')
-            logo = ""
-            if img_tag:
-                logo_src = img_tag.get('src', '')
-                logo = logo_src
-            
-            if name and url:
-                channels.append({
-                    "id": name.lower().replace(" ", "_"),
-                    "name": name,
-                    "logo": logo,
-                    "url": url
-                })
-    except Exception as e:
-        print(f"Error loading channels: {e}")
-        
-    return channels
+    if os.path.exists(JSON_FILE_PATH):
+        try:
+            with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error reading JSON: {e}")
+    return []
 
 @app.route("/api/channels")
 def get_channels():
@@ -73,7 +47,7 @@ def get_m3u_playlist():
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-# HTML Template with Hls.js player and external player intent links
+# HTML Template optimized for low footprint and multiple TV/Android Player integrations
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -100,10 +74,10 @@ HTML_TEMPLATE = """
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         .header h1 {
-            margin: 0 0 10px 0;
+            margin: 0 0 5px 0;
             font-weight: 700;
         }
         .header p {
@@ -113,7 +87,7 @@ HTML_TEMPLATE = """
         .player-wrapper {
             width: 100%;
             max-width: 800px;
-            margin: 0 auto 30px auto;
+            margin: 0 auto 25px auto;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
@@ -133,23 +107,33 @@ HTML_TEMPLATE = """
             gap: 15px;
             flex-wrap: wrap;
         }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
         .btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: var(--accent-color);
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             transition: opacity 0.2s;
             border: none;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
         }
         .btn:hover {
             opacity: 0.9;
         }
         .btn-secondary {
             background: #3a3a3c;
+        }
+        .btn-green {
+            background: #34c759;
         }
         .grid {
             display: grid;
@@ -216,8 +200,9 @@ HTML_TEMPLATE = """
         <video id="video" controls playsinline></video>
         <div class="controls">
             <span id="current-channel-title" style="font-weight:600;">Select a channel</span>
-            <div style="display: flex; gap: 10px;">
-                <a id="vlc-link" href="#" class="btn">VLC (Android)</a>
+            <div class="btn-group">
+                <a id="vlc-intent-link" href="#" class="btn">VLC Android</a>
+                <a id="vlc-direct-link" href="#" class="btn btn-green">VLC (Direct M3U8)</a>
                 <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Get M3U Playlist</a>
             </div>
         </div>
@@ -235,9 +220,12 @@ HTML_TEMPLATE = """
         function playStream(url, name, cardElement, shouldPlay = true) {
             document.getElementById('current-channel-title').innerText = name;
             
-            // Set VLC Intent Link
+            // Scheme 1: Intent URL (Ideal for browsers on mobile to launch VLC package)
             const streamUrlNoProtocol = url.replace(/^https?:\/\//, '');
-            document.getElementById('vlc-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=http;type=video/*;package=org.videolan.vlc;end`;
+            document.getElementById('vlc-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=http;type=video/*;package=org.videolan.vlc;end`;
+            
+            // Scheme 2: Direct vlc:// protocol URL (Works on many systems/TVs where VLC handler is registered)
+            document.getElementById('vlc-direct-link').href = `vlc://${url}`;
             
             if (activeCard) activeCard.classList.remove('active');
             cardElement.classList.add('active');
@@ -293,4 +281,3 @@ HTML_TEMPLATE = """
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
