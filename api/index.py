@@ -366,6 +366,11 @@ HTML_TEMPLATE = """
             }
         };
 
+        function handleImageError(img, name) {
+            img.src = 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(name);
+            img.onerror = null;
+        }
+
         function renderChannels(channels) {
             var grid = document.getElementById('channels-grid');
             grid.innerHTML = ''; 
@@ -375,8 +380,9 @@ HTML_TEMPLATE = """
                 card.className = 'card';
                 card.id = 'channel-card-' + (ch.id || idx);
                 var logoUrl = ch.logo && ch.logo.indexOf('./') !== 0 ? ch.logo : 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name);
+                var safeName = ch.name.replace(/'/g, "\\'");
                 card.innerHTML = 
-                    '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="this.src=\'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name) + '\'">' +
+                    '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="handleImageError(this, \'' + safeName + '\')">' +
                     '<div class="card-name">' + ch.name + '</div>';
                 
                 card.onclick = function() { selectChannel(ch.url, ch.name, card); };
