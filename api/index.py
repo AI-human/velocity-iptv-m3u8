@@ -281,34 +281,49 @@ HTML_TEMPLATE = """
     <div class="grid" id="channels-grid"></div>
 
     <script>
-        const video = document.getElementById('video');
-        const playerWrapper = document.getElementById('player-wrapper');
-        const playBrowserBtn = document.getElementById('play-browser-btn');
-        let hls = null;
-        let activeCard = null;
-        let currentUrl = "";
-        let currentName = "";
-        let isPlayerLoaded = false;
+        var video = document.getElementById('video');
+        var playerWrapper = document.getElementById('player-wrapper');
+        var playBrowserBtn = document.getElementById('play-browser-btn');
+        var hls = null;
+        var activeCard = null;
+        var currentUrl = "";
+        var currentName = "";
+        var isPlayerLoaded = false;
+
+        // Safe localStorage wrapper to prevent crashes on TV browsers that block it
+        var storage = {
+            getItem: function(key) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (e) {
+                    console.warn("localStorage read blocked", e);
+                    return null;
+                }
+            },
+            setItem: function(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch (e) {
+                    console.warn("localStorage write blocked", e);
+                }
+            }
+        };
 
         function selectChannel(url, name, cardElement) {
             currentUrl = url;
             currentName = name;
             document.getElementById('current-channel-title').innerText = name;
             
-            // Scheme 1: Generic Intent URL (Ideal for launching any installed video player on Android/TV)
-            const isHttps = url.startsWith('https://');
-            const streamUrlNoProtocol = url.replace(/^https?:\/\//, '');
-            const scheme = isHttps ? 'https' : 'http';
-            document.getElementById('generic-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=${scheme};type=video/*;end`;
-            
-            // Scheme 2: Direct link to the raw .m3u8 file
+            var isHttps = url.indexOf('https://') === 0;
+            var streamUrlNoProtocol = url.replace(/^https?:\/\//, '');
+            var scheme = isHttps ? 'https' : 'http';
+            document.getElementById('generic-intent-link').href = 'intent://' + streamUrlNoProtocol + '#Intent;scheme=' + scheme + ';type=video/*;end';
             document.getElementById('direct-stream-link').href = url;
             
             if (activeCard) activeCard.classList.remove('active');
             cardElement.classList.add('active');
             activeCard = cardElement;
 
-            // If browser player was already activated, switch the active stream
             if (isPlayerLoaded) {
                 loadBrowserPlayer(url);
             }
@@ -322,22 +337,22 @@ HTML_TEMPLATE = """
                 hls.destroy();
             }
 
-            if (Hls.isSupported()) {
+            if (window.Hls && Hls.isSupported()) {
                 hls = new Hls({
                     maxMaxBufferLength: 10
                 });
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    video.play().catch(e => console.log("Play blocked: ", e));
+                    video.play().catch(function(e) { console.log("Play blocked: ", e); });
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
-                video.play().catch(e => console.log("Play blocked: ", e));
+                video.play().catch(function(e) { console.log("Play blocked: ", e); });
             }
         }
 
-        playBrowserBtn.onclick = () => {
+        playBrowserBtn.onclick = function() {
             if (currentUrl) {
                 loadBrowserPlayer(currentUrl);
             } else {
@@ -345,59 +360,20 @@ HTML_TEMPLATE = """
             }
         };
 
-        async function init() {
-            const grid = document.getElementById('channels-grid');
-            
-            // 1. Try to load from localStorage first for instant display
-            const cachedData = localStorage.getItem('iptv_channels');
-            let hasLoadedFromCache = false;
-            if (cachedData) {
-                try {
-                    const channels = JSON.parse(cachedData);
-                    if (channels && channels.length > 0) {
-                        renderChannels(channels);
-                        hasLoadedFromCache = true;
-                    }
-                } catch (e) {
-                    console.error("Error parsing cached channels", e);
-                }
-            }
-
-            // 2. Fetch fresh channels from Vercel in the background to update tokens/logo
-            try {
-                const res = await fetch('/api/channels');
-                const channels = await res.json();
-                if (channels && channels.length > 0) {
-                    localStorage.setItem('iptv_channels', JSON.stringify(channels));
-                    // If we didn't have cache, render the list now. Otherwise update the URLs silently.
-                    if (!hasLoadedFromCache) {
-                        renderChannels(channels);
-                    } else {
-                        updateChannelUrls(channels);
-                    }
-                }
-            } catch (e) {
-                console.error("Error fetching fresh channels", e);
-                if (!hasLoadedFromCache) {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Failed to load channels.</div>';
-                }
-            }
-        }
-
         function renderChannels(channels) {
-            const grid = document.getElementById('channels-grid');
-            grid.innerHTML = ''; // Clear loading/existing grid
+            var grid = document.getElementById('channels-grid');
+            grid.innerHTML = ''; 
             
-            channels.forEach((ch, idx) => {
-                const card = document.createElement('div');
+            channels.forEach(function(ch, idx) {
+                var card = document.createElement('div');
                 card.className = 'card';
-                card.id = `channel-card-${ch.id || idx}`;
-                const logoUrl = ch.logo && !ch.logo.startsWith('./') ? ch.logo : 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name);
-                card.innerHTML = `
-                    <img src="${logoUrl}" alt="${ch.name}" onerror="this.src='https://via.placeholder.com/150/1c1c1e/ffffff?text=${encodeURIComponent(ch.name)}'">
-                    <div class="card-name">${ch.name}</div>
-                `;
-                card.onclick = () => selectChannel(ch.url, ch.name, card);
+                card.id = 'channel-card-' + (ch.id || idx);
+                var logoUrl = ch.logo && ch.logo.indexOf('./') !== 0 ? ch.logo : 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name);
+                card.innerHTML = 
+                    '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="this.src=\'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(ch.name) + '\'">' +
+                    '<div class="card-name">' + ch.name + '</div>';
+                
+                card.onclick = function() { selectChannel(ch.url, ch.name, card); };
                 grid.appendChild(card);
                 
                 if (idx === 0 && !activeCard) {
@@ -407,21 +383,19 @@ HTML_TEMPLATE = """
         }
 
         function updateChannelUrls(channels) {
-            channels.forEach((ch, idx) => {
-                const card = document.getElementById(`channel-card-${ch.id || idx}`);
+            channels.forEach(function(ch, idx) {
+                var card = document.getElementById('channel-card-' + (ch.id || idx));
                 if (card) {
-                    // Update click action to use new tokenized URL
-                    card.onclick = () => selectChannel(ch.url, ch.name, card);
+                    card.onclick = function() { selectChannel(ch.url, ch.name, card); };
                     
-                    // If this was the active card, update the current play links
                     if (card.classList.contains('active')) {
                         currentUrl = ch.url;
                         currentName = ch.name;
                         
-                        const isHttps = ch.url.startsWith('https://');
-                        const streamUrlNoProtocol = ch.url.replace(/^https?:\/\//, '');
-                        const scheme = isHttps ? 'https' : 'http';
-                        document.getElementById('generic-intent-link').href = `intent://${streamUrlNoProtocol}#Intent;scheme=${scheme};type=video/*;end`;
+                        var isHttps = ch.url.indexOf('https://') === 0;
+                        var streamUrlNoProtocol = ch.url.replace(/^https?:\/\//, '');
+                        var scheme = isHttps ? 'https' : 'http';
+                        document.getElementById('generic-intent-link').href = 'intent://' + streamUrlNoProtocol + '#Intent;scheme=' + scheme + ';type=video/*;end';
                         document.getElementById('direct-stream-link').href = ch.url;
                         
                         if (isPlayerLoaded) {
@@ -430,6 +404,43 @@ HTML_TEMPLATE = """
                     }
                 }
             });
+        }
+
+        function init() {
+            var grid = document.getElementById('channels-grid');
+            var cachedData = storage.getItem('iptv_channels');
+            var hasLoadedFromCache = false;
+
+            if (cachedData) {
+                try {
+                    var channels = JSON.parse(cachedData);
+                    if (channels && channels.length > 0) {
+                        renderChannels(channels);
+                        hasLoadedFromCache = true;
+                    }
+                } catch (e) {
+                    console.error("Error parsing cached channels", e);
+                }
+            }
+
+            fetch('/api/channels')
+                .then(function(res) { return res.json(); })
+                .then(function(channels) {
+                    if (channels && channels.length > 0) {
+                        storage.setItem('iptv_channels', JSON.stringify(channels));
+                        if (!hasLoadedFromCache) {
+                            renderChannels(channels);
+                        } else {
+                            updateChannelUrls(channels);
+                        }
+                    }
+                })
+                .catch(function(e) {
+                    console.error("Error fetching channels", e);
+                    if (!hasLoadedFromCache) {
+                        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Failed to load channels.</div>';
+                    }
+                });
         }
         init();
     </script>
