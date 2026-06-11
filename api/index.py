@@ -4,7 +4,7 @@ import json
 import time
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, Response, jsonify, render_template_string, request
+from flask import Flask, Response, jsonify, render_template_string, request, redirect
 
 app = Flask(__name__)
 
@@ -106,13 +106,22 @@ def get_m3u_playlist():
     
     for channel in channels:
         logo_part = f' tvg-logo="{channel["logo"]}"' if channel["logo"] else ''
+        redirect_url = f"{request.host_url}live/{channel['id']}.m3u8"
         m3u_content += (
             f'#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
             f'group-title="Live TV",{channel["name"]}\n'
-            f'{channel["url"]}\n'
+            f'{redirect_url}\n'
         )
         
     return Response(m3u_content, mimetype="text/plain")
+
+@app.route("/live/<channel_id>.m3u8")
+def live_channel(channel_id):
+    channels = load_channels()
+    channel = next((c for c in channels if c["id"] == channel_id), None)
+    if not channel:
+        return "Channel not found", 404
+    return redirect(channel["url"], code=302)
 
 @app.route("/")
 def index():
