@@ -246,6 +246,66 @@ def refresh_channels():
         "channels": channels
     })
 
+@app.route("/api/channels/update", methods=["POST"])
+def update_channels_data():
+    global cached_channels, last_cache_time
+    try:
+        data = request.json
+        if not data or "channels" not in data:
+            return jsonify({"status": "error", "message": "Invalid payload"}), 400
+        
+        channels = data["channels"]
+        if not isinstance(channels, list) or len(channels) == 0:
+            return jsonify({"status": "error", "message": "Channels list is empty"}), 400
+            
+        base_url = get_base_url()
+        local_logos = get_local_logos()
+        
+        processed_channels = []
+        for ch in channels:
+            name = ch.get("name", "Unknown").strip()
+            play_url = ch.get("url", "").strip()
+            logo = ch.get("logo", "").strip()
+            stream_source = ch.get("stream_source", "").strip()
+            category = ch.get("category", "Live TV").strip()
+            
+            if play_url:
+                if "token=" in play_url and "remote=" not in play_url:
+                    sep = "&" if "?" in play_url else "?"
+                    play_url += f"{sep}remote=no_check_ip"
+                    
+                ch_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+                
+                logo_val = os.path.basename(logo)
+                logo_lower = logo_val.lower()
+                if logo_lower in local_logos:
+                    logo_url = f"{base_url}static/logos/{local_logos[logo_lower]}"
+                elif logo:
+                    logo_url = f"https://ajobtv.com/assets/images/channels/{logo_val}"
+                else:
+                    logo_url = ""
+                    
+                processed_channels.append({
+                    "id": ch_id,
+                    "name": name,
+                    "logo": logo_url,
+                    "url": play_url,
+                    "stream_source": stream_source or play_url.split('?')[0],
+                    "category": category,
+                    "scraped_at": int(time.time())
+                })
+                
+        if processed_channels:
+            cached_channels = processed_channels
+            last_cache_time = time.time()
+            print(f"Successfully updated {len(processed_channels)} channels via browser scraping.")
+            return jsonify({"status": "success", "count": len(processed_channels)})
+    except Exception as e:
+        print(f"Error updating channels from client: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+        
+    return jsonify({"status": "error", "message": "No valid channels processed"}), 400
+
 @app.route("/playlist.m3u")
 @app.route("/playlist.m3u8")
 @app.route("/playlist")
@@ -1007,11 +1067,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
-        function autoRefreshAndPlay() {
-            var originalText = refreshBtn.innerText;
-            refreshBtn.innerText = "Auto-Refreshing...";
-            refreshBtn.disabled = true;
-
+        function fetchServerRefresh(onComplete, onError) {
             fetch('/api/channels/refresh')
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
@@ -1020,26 +1076,106 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         storage.setItem('iptv_channels', JSON.stringify(allChannels));
                         updateCategoryTabs(allChannels);
                         renderChannels(allChannels);
-                        
-                        // Find current channel and reload with fresh URL
-                        var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
-                        if (currentCh) {
-                            // Update the card object
-                            var card = document.getElementById('channel-card-' + currentCh.id);
-                            if (card) selectChannel(currentCh, card);
-                            loadBrowserPlayer(currentCh.url);
-                            showToast("Token refreshed! Resuming play...", "success");
-                        }
+                        if (onComplete) onComplete(allChannels);
+                    } else {
+                        if (onError) onError("Server-side refresh failed.");
                     }
                 })
-                .catch(function(e) {
-                    console.error("Auto-refresh failed", e);
-                    showToast("Failed to refresh token automatically.", "error");
+                .catch(function(e) { if (onError) onError(e); });
+        }
+
+        function performClientScrape(onComplete, onError) {
+            console.log("Fetching ajobtv via corsproxy.io...");
+            fetch("https://corsproxy.io/?https://ajobtv.com/")
+                .then(function(res) { 
+                    if (!res.ok) throw new Error("CORS Proxy HTTP error " + res.status);
+                    return res.text(); 
                 })
-                .finally(function() {
+                .then(function(html) {
+                    var match = html.match(/(?:const|var|let)\\s+channels\\s*=\\s*(\\[[\\s\\S]*?\\]);/);
+                    if (match) {
+                        try {
+                            var channelsData = JSON.parse(match[1]);
+                            var formatted = channelsData.map(function(ch) {
+                                return {
+                                    name: ch.name || ch.channel_name || "Unknown",
+                                    url: ch.play_url || "",
+                                    logo: ch.logo || ch.channel_logo || "",
+                                    stream_source: ch.stream_source || "",
+                                    category: ch.category_name || "Live TV"
+                                };
+                            }).filter(function(ch) { return ch.url; });
+                            
+                            if (formatted.length > 0) {
+                                console.log("Client successfully scraped " + formatted.length + " channels. Submitting to backend...");
+                                fetch('/api/channels/update', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ channels: formatted })
+                                })
+                                .then(function(r) { return r.json(); })
+                                .then(function(res) {
+                                    if (res.status === 'success') {
+                                        fetch('/api/channels')
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(updated) {
+                                                if (updated && updated.length > 0) {
+                                                    allChannels = updated;
+                                                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                                                    updateCategoryTabs(allChannels);
+                                                    renderChannels(allChannels);
+                                                    if (onComplete) onComplete(allChannels);
+                                                } else {
+                                                    if (onError) onError("Failed to load updated channels list.");
+                                                }
+                                            })
+                                            .catch(function(e) { if (onError) onError(e); });
+                                    } else {
+                                        if (onError) onError("Update API returned status error.");
+                                    }
+                                })
+                                .catch(function(e) { if (onError) onError(e); });
+                            } else {
+                                if (onError) onError("No valid channels parsed from HTML.");
+                            }
+                        } catch (err) {
+                            if (onError) onError("JSON parsing error of channels array.");
+                        }
+                    } else {
+                        console.log("Channels array not found in HTML. Falling back to server-side refresh...");
+                        fetchServerRefresh(onComplete, onError);
+                    }
+                })
+                .catch(function(err) {
+                    console.error("Client side scraping failed, trying server-side refresh...", err);
+                    fetchServerRefresh(onComplete, onError);
+                });
+        }
+
+        function autoRefreshAndPlay() {
+            var originalText = refreshBtn.innerText;
+            refreshBtn.innerText = "Auto-Refreshing...";
+            refreshBtn.disabled = true;
+
+            performClientScrape(
+                function(channels) {
+                    var currentCh = channels.find(function(c) { return c.id === currentChannelId; });
+                    if (currentCh) {
+                        var card = document.getElementById('channel-card-' + currentCh.id);
+                        if (card) selectChannel(currentCh, card);
+                        loadBrowserPlayer(currentCh.url);
+                        showToast("Token refreshed! Resuming play...", "success");
+                    }
                     refreshBtn.innerText = originalText;
                     refreshBtn.disabled = false;
-                });
+                },
+                function(err) {
+                    console.error("Auto-refresh failed", err);
+                    showToast("Failed to refresh token automatically.", "error");
+                    refreshBtn.innerText = originalText;
+                    refreshBtn.disabled = false;
+                }
+            );
         }
 
         playBrowserBtn.onclick = function() {
@@ -1056,36 +1192,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 refreshBtn.innerText = "Refreshing...";
                 refreshBtn.disabled = true;
                 
-                fetch('/api/channels/refresh')
-                    .then(function(res) { return res.json(); })
-                    .then(function(data) {
-                        if (data && data.channels && data.channels.length > 0) {
-                            allChannels = data.channels;
-                            storage.setItem('iptv_channels', JSON.stringify(allChannels));
-                            updateCategoryTabs(allChannels);
-                            renderChannels(allChannels);
-                            
-                            // Re-select current channel
-                            if (currentChannelId) {
-                                var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
-                                if (currentCh) {
-                                    var card = document.getElementById('channel-card-' + currentCh.id);
-                                    if (card) selectChannel(currentCh, card);
-                                }
-                            }
-                            showToast("All channels refreshed successfully!", "success");
-                        } else {
-                            showToast("Refresh succeeded but returned no channels.", "warning");
+                performClientScrape(
+                    function(channels) {
+                        if (currentChannelId) {
+                            var currentCh = channels.find(function(c) { return c.id === currentChannelId; });
+                            if (currentCh) {
+                                var card = document.getElementById('channel-card-' + currentCh.id);
+                                if (card) selectChannel(currentCh, card);
+                             }
                         }
-                    })
-                    .catch(function(e) {
-                        console.error("Manual refresh failed", e);
-                        showToast("Failed to manually refresh channels.", "error");
-                    })
-                    .finally(function() {
+                        showToast("All channels refreshed successfully!", "success");
                         refreshBtn.innerText = originalText;
                         refreshBtn.disabled = false;
-                    });
+                    },
+                    function(err) {
+                        console.error("Manual refresh failed", err);
+                        showToast("Failed to refresh channels.", "error");
+                        refreshBtn.innerText = originalText;
+                        refreshBtn.disabled = false;
+                    }
+                );
             };
         }
 
@@ -1189,7 +1315,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }
             }
 
-            // Always fetch fresh channels from backend on load
+            // Fetch from server first
             fetch('/api/channels')
                 .then(function(res) { return res.json(); })
                 .then(function(channels) {
@@ -1208,13 +1334,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             }
                         }
                     }
+                    // Trigger client-side scraping to update backend with freshest tokens
+                    performClientScrape();
                 })
                 .catch(function(e) {
-                    console.error("Fetch channels error", e);
-                    if (!hasLoadedFromCache) {
-                        document.getElementById('channels-grid').innerHTML = 
-                            '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Failed to load channels from server.</div>';
-                    }
+                    console.error("Fetch channels error, attempting client scrape...", e);
+                    performClientScrape(
+                        function() { /* Succeeded, UI already rendered */ },
+                        function() {
+                            if (!hasLoadedFromCache) {
+                                document.getElementById('channels-grid').innerHTML = 
+                                    '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Failed to load channels from server.</div>';
+                            }
+                        }
+                    );
                 });
         }
         init();
