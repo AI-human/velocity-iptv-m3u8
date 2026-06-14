@@ -332,10 +332,38 @@ def update_channels_data():
 @app.route("/playlist")
 def get_m3u_playlist():
     path = request.path
-    if path.endswith(".m3u8"):
-        return redirect("https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/playlist.m3u8")
-    else:
-        return redirect("https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/playlist.m3u")
+    filename = "playlist.m3u8" if path.endswith(".m3u8") else "playlist.m3u"
+    gist_url = f"https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/{filename}"
+    
+    print(f"IPTV client requested playlist. Proxying from Gist raw file: {gist_url}")
+    try:
+        resp = requests.get(gist_url, timeout=10)
+        if resp.status_code == 200:
+            response = Response(resp.text, mimetype="application/x-mpegurl; charset=utf-8")
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            return response
+        else:
+            print(f"Gist raw request failed with status: {resp.status_code}")
+    except Exception as e:
+        print(f"Error fetching raw playlist from Gist: {e}")
+
+    # Fallback: Generate it dynamically from cached/local seed channels if Gist fetch fails
+    channels = load_channels()
+    m3u_content = "#EXTM3U\n"
+    for channel in channels:
+        logo_part = f' tvg-logo="{channel.get("logo", "")}"' if channel.get("logo") else ''
+        category = channel.get("category", "Live TV")
+        stream_url = channel.get("url", "")
+        
+        m3u_content += (
+            f'#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
+            f'tvg-name="{channel["name"]}" group-title="{category}",{channel["name"]}\n'
+            f'{stream_url}\n'
+        )
+        
+    response = Response(m3u_content, mimetype="application/x-mpegurl; charset=utf-8")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 @app.route("/live-sub/<path:subpath>")
 def live_sub(subpath):
