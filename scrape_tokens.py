@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+import os
+import re
+import json
+import time
+import requests
+from dotenv import load_dotenv
+
+# Load local environment variables from .env file
+load_dotenv()
+
+GIST_ID = os.getenv("GITHUB_GIST_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GIST_FILENAME = "playlist.m3u"
+
+def scrape_channels():
+    url = "https://ajobtv.com/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+    
+    print("Scraping ajobtv.com...")
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            print(f"Error: HTTP {response.status_code} from ajobtv.com")
+            return []
+        
+        html_content = response.text
+        channels = []
+        
+        # Try to find inline javascript channels array
+        for pattern in [
+            r'(?:const|var|let)\s+channels\s*=\s*(\[[\s\S]*?\]);',
+            r'channels\s*:\s*(\[[\s\S]*?\])[,\s}]',
+        ]:
+            match = re.search(pattern, html_content)
+            if match:
+                try:
+                    channels_data = json.loads(match.group(1))
+                    for ch in channels_data:
+                        play_url = ch.get("play_url", "")
+                        name = ch.get("name", ch.get("channel_name", "Unknown")).strip()
+                        logo = ch.get("logo", ch.get("channel_logo", "")).strip()
+                        category = ch.get("category_name", "Live TV").strip()
+                        
+                        if play_url:
+                            play_url = play_url.replace('\\/', '/')
+                            if "token=" in play_url and "remote=" not in play_url:
+                                sep = "&" if "?" in play_url else "?"
+                                play_url += f"{sep}remote=no_check_ip"
+                            
+                            ch_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+                            channels.append({
+                                "id": ch_id,
+                                "name": name,
+                                "logo": logo,
+                                "url": play_url,
+                                "category": category
+                            })
+                    if channels:
+                        print(f"Scraped {len(channels)} channels from JS array.")
+                        return channels
+                except Exception as ex:
+                    print(f"JSON parsing warning: {ex}")
+                    continue
+
+        # Fallback raw regex scan
+        regex_pattern = r'(https?://[^\s"\'\`]+\.m3u8(?:[^\s"\'\`]*)?)'
+        matches = re.findall(regex_pattern, html_content)
+        for i, match_url in enumerate(matches):
+            clean_url = match_url.replace('\\/', '/')
+            if "token=" in clean_url and "remote=" not in clean_url:
+                sep = "&" if "?" in clean_url else "?"
+                clean_url += f"{sep}remote=no_check_ip"
+            
+            path_match = re.search(r'ctghub\.com/([^/]+)/', clean_url)
+            raw_name = path_match.group(1) if path_match else f"Channel {i+1}"
+            name = raw_name.replace('.', ' ').replace('-', ' ').replace('_', ' ').title().strip()
+            ch_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+            
+            channels.append({
+                "id": ch_id,
+                "name": name,
+                "logo": "",
+                "url": clean_url,
+                "category": "Live TV"
+            })
+            
+        print(f"Scraped {len(channels)} channels from raw regex fallback.")
+        return channels
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        return []
+
+def generate_m3u(channels):
+    m3u_content = "#EXTM3U\n"
+    for ch in channels:
+        logo_url = ""
+        logo_val = ch.get("logo", "")
+        if logo_val:
+            logo_url = f"https://ajobtv.com/assets/images/channels/{logo_val}"
+            
+        logo_part = f' tvg-logo="{logo_url}"' if logo_url else ''
+        category = ch.get("category", "Live TV")
+        stream_url = ch.get("url", "")
+        
+        m3u_content += (
+            f'#EXTINF:-1 tvg-id="{ch["id"]}"{logo_part} '
+            f'tvg-name="{ch["name"]}" group-title="{category}",{ch["name"]}\n'
+            f'{stream_url}\n'
+        )
+    return m3u_content
+
+def update_gist(m3u_data):
+    if not GITHUB_TOKEN or not GIST_ID:
+        print("\nERROR: GITHUB_TOKEN or GITHUB_GIST_ID not set in environment or .env file.")
+        print("Please configure them to upload directly to GitHub Gist.")
+        # Write to a local file as fallback
+        with open("playlist_local.m3u", "w", encoding="utf-8") as f:
+            f.write(m3u_data)
+        print("Saved playlist locally to 'playlist_local.m3u' instead.")
+        return False
+        
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    payload = {
+        "description": "Velocity IPTV Live M3U Playlist - Auto Updated",
+        "files": {
+            GIST_FILENAME: {
+                "content": m3u_data
+            }
+        }
+    }
+    
+    print(f"Updating Gist {GIST_ID}...")
+    try:
+        response = requests.patch(url, headers=headers, json=payload)
+        if response.status_code == 200:
+            data = response.json()
+            raw_url = data["files"][GIST_FILENAME]["raw_url"]
+            print("\nSUCCESS! Gist updated successfully.")
+            print(f"Your raw M3U Playlist URL for VLC/TV:")
+            print("-" * 60)
+            print(raw_url)
+            print("-" * 60)
+            return True
+        else:
+            print(f"Failed to update Gist: HTTP {response.status_code}")
+            print(response.text)
+            return False
+    except Exception as e:
+        print(f"Network error updating Gist: {e}")
+        return False
+
+def main():
+    channels = scrape_channels()
+    if not channels:
+        print("Failed to scrape channels. Aborting.")
+        return
+        
+    m3u_content = generate_m3u(channels)
+    update_gist(m3u_content)
+
+if __name__ == "__main__":
+    main()
