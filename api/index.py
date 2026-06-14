@@ -203,33 +203,29 @@ def add_header(response):
 
 @app.route("/api/debug")
 def debug_scrape():
-    url = "https://ajobtv.com/"
+    test_urls = [
+        ("Direct", "https://ajobtv.com/"),
+        ("AllOrigins", "https://api.allorigins.win/raw?url=https://ajobtv.com/"),
+        ("CorsProxyIO", "https://corsproxy.io/?https://ajobtv.com/")
+    ]
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://www.google.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
-    result = {
-        "url": url,
-        "success": False,
-        "status_code": None,
-        "error": None,
-        "content_length": 0,
-        "headers": {},
-        "html_preview": ""
-    }
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        result["status_code"] = r.status_code
-        result["headers"] = dict(r.headers)
-        result["content_length"] = len(r.text)
-        result["html_preview"] = r.text[:1000]
-        if r.status_code == 200:
-            result["success"] = True
-    except Exception as e:
-        result["error"] = str(e)
-    return jsonify(result)
+    
+    results = []
+    for name, url in test_urls:
+        res = {"name": name, "url": url, "status_code": None, "length": 0, "error": None}
+        try:
+            r = requests.get(url, headers=headers, timeout=8)
+            res["status_code"] = r.status_code
+            res["length"] = len(r.text)
+            if r.status_code == 200:
+                res["snippet"] = r.text[:300]
+        except Exception as e:
+            res["error"] = str(e)
+        results.append(res)
+        
+    return jsonify(results)
 
 @app.route("/api/channels")
 def get_channels():
