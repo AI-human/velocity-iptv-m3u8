@@ -8,7 +8,7 @@ from flask import Flask, Response, jsonify, render_template_string, request, red
 
 app = Flask(__name__)
 
-# Cache tokens in memory for 5 minutes (300 seconds) to ensure speed and prevent rate-limiting
+# Cache tokens in memory for 5 minutes (300 seconds) - production deployment
 CACHE_EXPIRY = 300  
 cached_channels = None
 last_cache_time = 0
