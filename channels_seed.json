@@ -2,493 +2,575 @@
   {
     "id": "a_sports",
     "name": "A Sports",
-    "logo": "http://localhost:5000/static/logos/asportshd.jpg",
-    "url": "https://hd.ctghub.com/A.SPORTS.HD/index.m3u8?token=2577d3454d949da2a14116f649285b09eef505eb-006d19b05208f74a712d15c0b4163702-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "asportshd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "eurosport",
     "name": "Eurosport",
-    "logo": "http://localhost:5000/static/logos/eurosprot1.jpg",
-    "url": "https://hd.ctghub.com/EUROSPORTS.HD/index.m3u8?token=93a237f5f7d0e91e6884dc27e1f4d0f7025492a0-a58b8bb5ad706f35c4a9fc46dbdcb556-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "eurosprot1.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "fast_sports",
     "name": "Fast Sports",
-    "logo": "http://localhost:5000/static/logos/fast-sports.png",
-    "url": "https://hd.ctghub.com/FAST.SPORTS.HD/index.m3u8?token=56167a851741fcb87876c9fab4439fe8279ecb40-335185270f5c4fbd2cab0c43b53a064c-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "fast-sports.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "ptv_spotrs",
     "name": "PTV spotrs",
-    "logo": "http://localhost:5000/static/logos/ptvsportsHD.jpg",
-    "url": "https://hd.ctghub.com/PTV-SPORTS-HD/index.m3u8?token=23b6d0273d81a6bdab67de9c721b3bae0ce341c4-608487e8d9afcfa5e42758e8aa635706-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "ptvsportsHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_sports_1",
     "name": "Sony Sports 1",
-    "logo": "http://localhost:5000/static/logos/Sonyten1HD.jpg",
-    "url": "https://hd.ctghub.com/SONY.SPORTS.1HD/video.m3u8?token=6c480fb047aab10b230bdfa0d9bc10a58b21df3f-e4f66dfd1b9ec8b82270cc4e55b9842f-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "Sonyten1HD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_sports_2",
     "name": "Sony Sports 2",
-    "logo": "http://localhost:5000/static/logos/Sonyten2HD.jpg",
-    "url": "https://hd.ctghub.com/SONY.SPORTS2.HD/index.m3u8?token=e84097713c0d87e6540f1e61a542f8487d89a76f-a404658632d73f8423c3cc3329e682b8-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "Sonyten2HD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_sports_3",
     "name": "Sony Sports 3",
-    "logo": "http://localhost:5000/static/logos/Sonyten3HD.jpg",
-    "url": "https://hd.ctghub.com/SONY.SPORTS.3/index.m3u8?token=7e40416bed8dd804be0131beaee50d11daeb78c1-8fff1835716e79b114c855407636ce98-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "Sonyten3HD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_sports_4",
     "name": "Sony Sports 4",
-    "logo": "http://localhost:5000/static/logos/Sonyten4HD.png",
-    "url": "https://hd.ctghub.com/SONY.SPORTS.4/index.m3u8?token=09bf1db8a0e7ffe63b7333583d55e122dd238514-4b10fc1119ffcecdb63896b6a1a01e23-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "Sonyten4HD.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_sports_5",
     "name": "Sony Sports 5",
-    "logo": "http://localhost:5000/static/logos/Sonyten5HD.jpg",
-    "url": "https://hd.ctghub.com/SONY-SPORTS.5HD/index.m3u8?token=2f2968bd7088fc239ddf6da49b0b7225e1f5ded9-cb6d2b0512dc51182c71ea3c9cb96b73-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "Sonyten5HD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_select_1",
     "name": "Star Select 1",
-    "logo": "http://localhost:5000/static/logos/starselect1hd.jpg",
-    "url": "https://hd.ctghub.com/STAR.SPORTS-SEL1.HD/index.m3u8?token=6ac85869aec32eb5cce5855d61b0bb0bc58bcf3d-7d6e08bc5663e79ead0d50acee137217-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starselect1hd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_select_2",
     "name": "Star Select 2",
-    "logo": "http://localhost:5000/static/logos/starselect2hd.jpg",
-    "url": "https://hd.ctghub.com/STAR.SPORTS.SEL.2.HD/index.m3u8?token=2fc9307f3cb898c1be8e85cc724f61d1047792eb-4fd5838732d27249e9fbbf1610f8ef4b-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starselect2hd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_sports_1",
     "name": "Star Sports 1",
-    "logo": "http://localhost:5000/static/logos/starsports1hd.jpg",
-    "url": "https://hd.ctghub.com/STAR.SPORTS1.HD/index.m3u8?token=e0f06b8571f82b084d31958153edc32090bf2616-184cd7eddff29e7c230589ae78844362-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starsports1hd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_sports_2",
     "name": "Star Sports 2",
-    "logo": "http://localhost:5000/static/logos/starsports2hd.jpg",
-    "url": "https://hd.ctghub.com/STAR.SPORTS2.HD/index.m3u8?token=888429331059de1d27d316a57e0079ae81aa87f2-5bc8683e984f5d301c869e7a0ce18cf9-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starsports2hd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_sports_3",
     "name": "Star Sports 3",
-    "logo": "http://localhost:5000/static/logos/starsports3.png",
-    "url": "https://hd.ctghub.com/STAR-SPORTS.3/index.m3u8?token=71bfa5733b8ffdc1e6b1b0e084b6b1cb7f993891-85a3b66f5eda17290d1e4c0d2b8e6cac-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starsports3.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "t-sports",
     "name": "T-Sports",
-    "logo": "http://localhost:5000/static/logos/tsports.jpg",
-    "url": "https://hd.ctghub.com/T-SPORTS-HD/index.m3u8?token=8f0c8b533fa26fffc22e22b4979e377c269aa733-8b00066ef1e08656437e4b9ec3bf5590-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "tsports.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "atn_bangla",
     "name": "ATN Bangla",
-    "logo": "http://localhost:5000/static/logos/atnbangla.jpg",
-    "url": "https://hd.ctghub.com/ATN.BANGLA.HD/index.m3u8?token=5ec4effd4956ce60623253a5cb3f710aef62e67f-1f8e383e8ab3e2bae1355ac5d67ab2e5-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "atnbangla.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "atn_news",
     "name": "ATN News",
-    "logo": "http://localhost:5000/static/logos/atnnewsbangla24.jpg",
-    "url": "https://hd.ctghub.com/ATN.NEWS.HD/index.m3u8?token=1e1a1ecaade99c91ee6660c122163eca4b4cd11e-613f1d9dce23f13189c0f2e4f1e3b4ba-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "atnnewsbangla24.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "channel_24",
     "name": "Channel 24",
-    "logo": "http://localhost:5000/static/logos/channel24.jpg",
-    "url": "https://hd.ctghub.com/CHANNEL.24.HD/index.m3u8?token=ec32c8c52fbc1baf673f971829d32f6ac43bba5b-856d207c7fce4c3aadf2a27a7854061d-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "channel24.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "channel_i",
     "name": "Channel i",
-    "logo": "http://localhost:5000/static/logos/channeli.jpg",
-    "url": "https://hd.ctghub.com/CHANNEL.I.HD/index.m3u8?token=7b32f6c98ba1c3c97f1cb06d9f5958e7abc207c4-c8dd0b600f45563f570e24662640bc06-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "channeli.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "colors_bangla_cinema",
     "name": "Colors Bangla Cinema",
-    "logo": "http://localhost:5000/static/logos/colorsbanglacinema.jpg",
-    "url": "https://hd.ctghub.com/COLORS.BANGLA.CINEMA/index.m3u8?token=24a9be71844f1b3fa1214e8d030eb1dbc7128c59-415240d1195d414e401c116fc8753383-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "colorsbanglacinema.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "enterr10_bangla",
     "name": "Enterr10 Bangla",
-    "logo": "http://localhost:5000/static/logos/enterr10.jpg",
-    "url": "https://hd.ctghub.com/ENTER10.BANGLA/index.m3u8?token=26fa804748433ba4ac9cbeb17db315e431390b43-5b254d283bcb883328322cb1f4722cce-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "enterr10.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "gazi_tv",
     "name": "Gazi TV",
-    "logo": "http://localhost:5000/static/logos/gtv.jpg",
-    "url": "https://hd.ctghub.com/GAZI.TV.HD/index.m3u8?token=18c8b29a4e3f8442aaffce2a43b09d2ad05c2cc4-0ce3d187e50d954399cc5cd5a3603812-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "gtv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "independent_tv",
     "name": "Independent TV",
-    "logo": "http://localhost:5000/static/logos/independenttv.jpg",
-    "url": "https://hd.ctghub.com/INDEPENDENT.TV/index.m3u8?token=868d8302af304d37536eaafe4b3a51cc1d19add6-0ac2144e7c696f5aa589538c06cfe287-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "independenttv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "jalsha_movies_hd",
     "name": "Jalsha Movies HD",
-    "logo": "http://localhost:5000/static/logos/jalshamoviesHD.png",
-    "url": "https://hd.ctghub.com/JALSHA.MOVIES.HD/index.m3u8?token=bd8136214389d5015d007a01f626ac2a7b13ece6-eddafdc971c060b547f738a629f1ade7-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "jalshamoviesHD.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "jamuna_tv",
     "name": "Jamuna TV",
-    "logo": "http://localhost:5000/static/logos/jamunatv.jpg",
-    "url": "https://hd.ctghub.com/JAMUNA.TV/index.m3u8?token=b8711919abd70bb396c96d2ab300542663433a89-f207382ad616769600cc8e32cff2beec-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "jamunatv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "maasranga",
     "name": "Maasranga",
-    "logo": "http://localhost:5000/static/logos/maasrangatv.jpg",
-    "url": "https://hd.ctghub.com/MASRANGA.TV.HD/index.m3u8?token=f737239704d3f2c142e37c520d2eeb9354edcc69-f8b70a85b927c13457ce05198862c00d-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "maasrangatv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "madani_channel_bangla",
     "name": "Madani Channel Bangla",
-    "logo": "http://localhost:5000/static/logos/madanichannelbangla.png",
-    "url": "https://hd.ctghub.com/MADANI.TV.HD/index.m3u8?token=76951b1532dcf360d6c05d00f31e70c85f9005ba-33ca31be9455ffe26b95c02dd455cbc5-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "madanichannelbangla.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "nagorik_tv",
     "name": "Nagorik TV",
-    "logo": "http://localhost:5000/static/logos/nagoriktv.jpg",
-    "url": "https://hd.ctghub.com/NAGORIK.TV.HD/index.m3u8?token=20e2ca74379310dbefcafaf9a03b6caed25fa67c-42b028cdf1a6dab6cb60b932b7baab47-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "nagoriktv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "peace_tv",
     "name": "Peace TV",
-    "logo": "http://localhost:5000/static/logos/peacetv.png",
-    "url": "https://hd.ctghub.com/PEACE.TV.BANGLA.HD/index.m3u8?token=538f2b09a803ffd247e664f5e2112491a2ee2cee-71020782457c943c9ecae07b8d4259ce-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "peacetv.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "somoy_tv",
     "name": "Somoy TV",
-    "logo": "http://localhost:5000/static/logos/somoytv.jpg",
-    "url": "https://hd.ctghub.com/SOMOY.TV.HD/index.m3u8?token=3dbfa60d1255e6c99e8b5ff39e0f25ed9c802b91-27d5e0a4dfa65d5669e3a9ad42d2102d-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "somoytv.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_aath",
     "name": "Sony Aath",
-    "logo": "http://localhost:5000/static/logos/sonyaath.jpg",
-    "url": "https://hd.ctghub.com/SONY.AAT/index.m3u8?token=2f42332457a3e2c1f06e69a97cc93cb260262252-7caf206943bb66e502a3f706b0fb808a-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonyaath.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_jalsha",
     "name": "Star Jalsha",
-    "logo": "http://localhost:5000/static/logos/starjalshahd.jpg",
-    "url": "https://hd.ctghub.com/STAR.JALSHA.HD/index.m3u8?token=c0010c12b1a33c7ae0a998ae836c7228de9a8493-856dc183aeeb99a4a834106e98fc4422-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starjalshahd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sun_bangla",
     "name": "Sun Bangla",
-    "logo": "http://localhost:5000/static/logos/sunbanglaHD.jpg",
-    "url": "https://hd.ctghub.com/SUN.BANGLA.HD/index.m3u8?token=798dfaf7f2e856fe73d1b52937c3f0bf2a558dba-1a1b7bdbd07df06af9654d26b7840975-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sunbanglaHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zee_bangla",
     "name": "Zee Bangla",
-    "logo": "http://localhost:5000/static/logos/zeebanglahd.jpg",
-    "url": "https://hd.ctghub.com/ZEE.BANGLA.HD/index.m3u8?token=23d936432c84f44899435baa2fb33128a5a1493c-e1a54adaf45d9b31ff1d13b2fbeb5630-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zeebanglahd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zee_bangla_cinema",
     "name": "ZEE Bangla Cinema",
-    "logo": "http://localhost:5000/static/logos/zeebanglacinema.jpg",
-    "url": "https://hd.ctghub.com/ZEE.BANGLA.CINEMA/index.m3u8?token=4c2c815cacab562f10ae3fa369c181bd28353e74-40178644c5683124bca2425a901d260b-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zeebanglacinema.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "&pictures",
     "name": "&Pictures",
-    "logo": "http://localhost:5000/static/logos/&picturesHD.jpg",
-    "url": "https://hd.ctghub.com/ANT.PICTURS.HD/index.m3u8?token=6c8104bc58cd71366eac0b8512e433ff1d9fe222-f66ad6d46a554da9b5def3df5a675683-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "&picturesHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "colors",
     "name": "Colors",
-    "logo": "http://localhost:5000/static/logos/colorsHD.jpg",
-    "url": "https://hd.ctghub.com/COLORS.HD/index.m3u8?token=257a644e62a6616e5c2f76c41e7715a3c782a8c7-775187cdc6afad22fa9ed1c08bd8e34b-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "colorsHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "colors_cineplex",
     "name": "Colors Cineplex",
-    "logo": "http://localhost:5000/static/logos/colorscineplex.jpg",
-    "url": "https://hd.ctghub.com/COLORS.CINEPLEX.HD/index.m3u8?token=e0620545bfb885f799484213895ae17e17f6f78b-720d4754db59d6b68e9628844ec7de71-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "colorscineplex.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "geo_news",
     "name": "Geo News",
-    "logo": "http://localhost:5000/static/logos/geonews.png",
-    "url": "https://hd.ctghub.com/GEO.NEWS.HD/index.m3u8?token=8c4a4c07c1f554b5a859299e3b86c5d101d567f0-c5be9448e5d851a036219bef0e7e8458-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "geonews.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "hum_tv",
     "name": "Hum TV",
-    "logo": "http://localhost:5000/static/logos/humtv.png",
-    "url": "https://hd.ctghub.com/HUM.MASALA.TV/index.m3u8?token=d776d22c8e2304c3e87a3a67cd401bd3671d18b1-156c9be6997d1ce47831ab0e254cafab-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "humtv.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_entertainment",
     "name": "Sony Entertainment",
-    "logo": "http://localhost:5000/static/logos/sonyHD.jpg",
-    "url": "https://hd.ctghub.com/SONY.ENT.HD/index.m3u8?token=7ffbae579b2c5d2d574e4d3ee63039e988807aeb-510fe216f570816a25a6ca08ca0cd72f-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonyHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_max_hd",
     "name": "Sony Max HD",
-    "logo": "http://localhost:5000/static/logos/sonymaxHD.jpg",
-    "url": "https://hd.ctghub.com/SONY.MAX.HD/index.m3u8?token=3e076292300b3f2d486f130a82eaaa5a507a172a-7f003bc54310604edd1b4a00e62c7590-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonymaxHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_bharat",
     "name": "Star Bharat",
-    "logo": "http://localhost:5000/static/logos/starbharat.png",
-    "url": "https://hd.ctghub.com/STAR.BHARAT.HD/index.m3u8?token=88c7d161da62c138c977c5f0ad20d0b8b467e1ae-355218e38e532b4137f669cd6f4f390c-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starbharat.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_gold",
     "name": "Star Gold",
-    "logo": "http://localhost:5000/static/logos/stargoldhd.png",
-    "url": "https://hd.ctghub.com/STAR.GOLD.HD/index.m3u8?token=ad333b927c33d21435d6acfc4ed0baebf2738835-cca50f595c6412104b5d10fe250f7b9e-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "stargoldhd.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_plus",
     "name": "Star Plus",
-    "logo": "http://localhost:5000/static/logos/starplus.jpg",
-    "url": "https://hd.ctghub.com/STAR.PLUS.HD/index.m3u8?token=41ae7a1366d020a75617e9b8465dc0cb30beedb0-e2bb895b34aad1e48b11a2d07df30608-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starplus.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zee_cinema",
     "name": "Zee Cinema",
-    "logo": "http://localhost:5000/static/logos/zeecinemahd.jpg",
-    "url": "https://hd.ctghub.com/ZEE.CINEMA.HD/index.m3u8?token=20b3465cded09e7832af40cceb2bcf64d1ab38a3-1a12f2b838c2580925597e33ba871421-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zeecinemahd.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zee_tv",
     "name": "ZEE TV",
-    "logo": "http://localhost:5000/static/logos/zeetvHD.jpg",
-    "url": "https://hd.ctghub.com/ZEE.TV.HD/index.m3u8?token=a4dc0d80473c9e212ce35167d9819648079bb99b-72c27c33985010745057369f0e15614c-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zeetvHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zing",
     "name": "ZING",
-    "logo": "http://localhost:5000/static/logos/zing.jpg",
-    "url": "https://hd.ctghub.com/ZING.MUSIC/index.m3u8?token=c2d948754391003b46501eaee74948d9a6c930f2-300300dd0edb85a0518a5a07f443c249-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zing.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zoom",
     "name": "Zoom",
-    "logo": "http://localhost:5000/static/logos/zoomturnon.jpg",
-    "url": "https://hd.ctghub.com/ZOOM.MUSIC/index.m3u8?token=b699c5d5ce7fe69fe4bd7bbce45b34fd90b7e80c-ddb8beab116d7df0843b7484507a736a-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zoomturnon.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "cartoon_network_hd",
     "name": "Cartoon Network HD",
-    "logo": "http://localhost:5000/static/logos/cartoonnetworksHD.jpg",
-    "url": "https://hd.ctghub.com/CARTON.NETWORK.HD/index.m3u8?token=219c28422c4177e964b10b43c8eac59dbb6159cb-b46848e53f9331de9777c5338ad90ea8-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "cartoonnetworksHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "duronto_tv",
     "name": "Duronto TV",
-    "logo": "http://localhost:5000/static/logos/durunto.jpg",
-    "url": "https://hd.ctghub.com/DURANTA.TV.HD/index.m3u8?token=5725a2044e9be0ab458d7af4b2d3266c0c14022c-9e8f81b69183a65e8b91289e7e7482a2-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "durunto.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "etv_bal_bharat",
     "name": "ETV Bal Bharat",
-    "logo": "http://localhost:5000/static/logos/etvbalbharat.png",
-    "url": "https://hd.ctghub.com/ETV.BAL.BHARAT/index.m3u8?token=055ba538c7cf643668ad238f0ea70f54ea41f41d-37f15f32dce83fe49e78ca8ad2f7d515-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "etvbalbharat.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "hungama",
     "name": "Hungama",
-    "logo": "http://localhost:5000/static/logos/hungama.png",
-    "url": "https://hd.ctghub.com/HUNGAMA/index.m3u8?token=3d29db784a64d51934338ae17e2ad9088460e711-e7a11b38fbf8b03b5f0ba6f4c2f43718-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "hungama.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "nick",
     "name": "Nick",
-    "logo": "http://localhost:5000/static/logos/nickHD.jpg",
-    "url": "https://hd.ctghub.com/NICK/index.m3u8?token=f9dd48b2f9577b6246bd4eb19c31da2a2f8592e2-ecd3d9f3338d7e377f4a45c76519e999-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "nickHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "nick_jr.",
     "name": "Nick Jr.",
-    "logo": "http://localhost:5000/static/logos/nickjr.png",
-    "url": "https://hd.ctghub.com/NICK.JR/index.m3u8?token=b9cd0b8ddbb65ccce80f7567db28eaf0bec2e354-153559ac6cad788acd198771fb8ad419-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "nickjr.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "pogo",
     "name": "POGO",
-    "logo": "http://localhost:5000/static/logos/pogo.jpg",
-    "url": "https://hd.ctghub.com/POGO/index.m3u8?token=c6373b312ba2bb643a43c6ea9b6b03ec5a7cdb85-8717bdd5b62dc0a62265defd2b6f19f3-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "pogo.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sonic",
     "name": "Sonic",
-    "logo": "http://localhost:5000/static/logos/sonic.png",
-    "url": "https://hd.ctghub.com/SONIC/index.m3u8?token=f32de12fe60221ca7a0079c7ffad84319b48b238-01bf0c02202868caa3dab8c2ea891681-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonic.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_yay",
     "name": "Sony Yay",
-    "logo": "http://localhost:5000/static/logos/sonyyayHD.jpg",
-    "url": "https://hd.ctghub.com/SONY.YAY/index.m3u8?token=9a23d26d75df1f2f7bdcbaf635177948771d5d98-9375afe171bf10d769747062f3d7efc3-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonyyayHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "super_hungama",
     "name": "Super Hungama",
-    "logo": "http://localhost:5000/static/logos/superhungama.png",
-    "url": "https://hd.ctghub.com/SUPER.HUNGAMA/index.m3u8?token=a364c56ca24c56e24f2aa8254ccabfdff1c8261f-0338011a4ca4718ba5a92c89d6dff9ff-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "superhungama.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "&flix",
     "name": "&Flix",
-    "logo": "http://localhost:5000/static/logos/&flix.jpg",
-    "url": "https://hd.ctghub.com/AND.FLIX.HD/index.m3u8?token=8dfdca49e3e922de408a30af024d2700871cae98-bd5ca0d78f83d07eecae463dc0b5aba9-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "&flix.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "&prive_hd",
     "name": "&Prive HD",
-    "logo": "http://localhost:5000/static/logos/&privehd.png",
-    "url": "https://hd.ctghub.com/AND.PRIVE.HD/index.m3u8?token=5c4f5fe8949525dec3bb998d4a1187f6ea7e2584-b35e79805059a878c9dbe0ec3a44414b-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "&privehd.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "&xplor_hd",
     "name": "&Xplor HD",
-    "logo": "http://localhost:5000/static/logos/&xplor.png",
-    "url": "https://hd.ctghub.com/XPLOR.HD/index.m3u8?token=3ba275b2d1de8e5e7b5cfd97489ea81eb67f741e-6a7e936f66b0dad19729971ff9652611-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "&xplor.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "al_jazeera",
     "name": "Al Jazeera",
-    "logo": "http://localhost:5000/static/logos/aljazeera.jpg",
-    "url": "https://hd.ctghub.com/ALJAZEERA.HD/index.m3u8?token=9158348982a3c86989f710e702956da2c902e7db-00f9550ef7e58fd981dbf685e8a28886-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "aljazeera.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "animal_planet",
     "name": "Animal Planet",
-    "logo": "http://localhost:5000/static/logos/animalplanet.jpg",
-    "url": "https://hd.ctghub.com/ANIMAL.PLANET.HD/index.m3u8?token=f0340ee331ce26c91af49127d0052a9abb81c9de-5a35b0271680b7aa46f2f148f634a872-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "animalplanet.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "axn_hd",
     "name": "AXN HD",
-    "logo": "http://localhost:5000/static/logos/axnHD.jpg",
-    "url": "https://hd.ctghub.com/AXN.HD/index.m3u8?token=e6f193daa5014675c05b291100eb301bcbc0909d-0ab9211ff9607e26fc00333159ed9c77-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "axnHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "bbc_earth_hd",
     "name": "BBC Earth HD",
-    "logo": "http://localhost:5000/static/logos/bbcearth.jpg",
-    "url": "https://hd.ctghub.com/BBC.Earth.HD/index.m3u8?token=50f9ff5db4aa9b5e74fc4d8717aadf7dddcde566-679b36061ac740d3c1d84e8a9518209b-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "bbcearth.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "discovery_hd",
     "name": "Discovery HD",
-    "logo": "http://localhost:5000/static/logos/discoverychannel.jpg",
-    "url": "https://hd.ctghub.com/DISCOVERY.HD/index.m3u8?token=ad72ec06078c3cd490ac6938101054ebd028d118-cf4500659eeab04ae87bf1e80b59d376-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "discoverychannel.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "history_tv_hd",
     "name": "History TV HD",
-    "logo": "http://localhost:5000/static/logos/historyHD.jpg",
-    "url": "https://hd.ctghub.com/HISTORY.TV.18.HD/index.m3u8?token=dfef59d5bd6e22072fe0552e3ba0cefc39494878-6f3fe874c197b89eabf6c2a49008926f-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "historyHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "lotus_tv",
     "name": "Lotus TV",
-    "logo": "http://localhost:5000/static/logos/lotusmacau.png",
-    "url": "https://hd.ctghub.com/Lotus.TV.HD/index.m3u8?token=667e2f2eb35f917f78f7148471b63827ecf500d1-a92360283cee1924bfbfdf1324f32a3d-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "lotusmacau.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "mn_plus",
     "name": "MN PLus",
-    "logo": "http://localhost:5000/static/logos/mn+HD.jpg",
-    "url": "https://hd.ctghub.com/MN.PLUS.HD/index.m3u8?token=09a849fe5951bfafe5a2c2bd7d4a00f67fc23e91-28e4eb85942b64c2c8cb64ad6ca29eda-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "mn+HD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "mnx_hd",
     "name": "MNX HD",
-    "logo": "http://localhost:5000/static/logos/mnxhd.png",
-    "url": "https://hd.ctghub.com/MNX.HD/index.m3u8?token=627bb14c079315b1069d42d3d63a5c6abe1d664f-0eb17073c75b26071b30ae267f5ac343-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "mnxhd.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "movies_now_hd",
     "name": "Movies Now HD",
-    "logo": "http://localhost:5000/static/logos/moviesnowHD.jpg",
-    "url": "https://hd.ctghub.com/MOVIES.NOW.HD/index.m3u8?token=ed3c80937c9aa048032e1d8a058c36c5b0875444-d6d9f3debcc77d4626464897b58740d7-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "moviesnowHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "nat_geo_hd",
     "name": "NAT GEO HD",
-    "logo": "http://localhost:5000/static/logos/nationalgeograpic.jpg",
-    "url": "https://hd.ctghub.com/NATGEO.HD/index.m3u8?token=962af3b11ed089d4b3e30ea4abdd0e959f42e773-2c74759b28cab84367a7fdf33a8f35dd-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "nationalgeograpic.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "nat_geo_wild",
     "name": "NAT Geo Wild",
-    "logo": "http://localhost:5000/static/logos/wildHD.jpg",
-    "url": "https://hd.ctghub.com/NATGEO.WILD.HD/index.m3u8?token=de89e096b45dd94259a26d79267a49342c3c4e3d-b2457b405184a8c57eb8e670b99a08c0-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "wildHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "romedy_now",
     "name": "Romedy Now",
-    "logo": "http://localhost:5000/static/logos/romedynow.png",
-    "url": "https://hd.ctghub.com/ROMEDY.NOW/index.m3u8?token=d8a1562a4344b37b309dda01709889cc6647ccde-6f71e2d6339bf2f9a610034b5c3538a1-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "romedynow.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_bbc_earth",
     "name": "Sony BBC Earth",
-    "logo": "http://localhost:5000/static/logos/sonybbcearth.png",
-    "url": "https://hd.ctghub.com/SONY.BBC.EARTH.HD/index.m3u8?token=cbf537e536bfb9cb67d2244f292fd45bb5d8e4b0-ec5d6e9869aeab694e29c79f1421ae68-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonybbcearth.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "sony_pix",
     "name": "Sony Pix",
-    "logo": "http://localhost:5000/static/logos/sonypixHD.jpg",
-    "url": "https://hd.ctghub.com/SONY.PIX.HD/index.m3u8?token=247c593a82414acb6d4163e81306398e7bebad72-8d4b1d98b5122fcd01dfaed96a0f4914-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "sonypixHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_movies_hd",
     "name": "Star Movies HD",
-    "logo": "http://localhost:5000/static/logos/starmoviesHD.jpg",
-    "url": "https://hd.ctghub.com/STAR.MOVIES.HD/index.m3u8?token=1b24cb912d9ee4d5282bf2e4b5fa70605d59b3d2-e1de65c128b7d6704ffc28d3047d90e3-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starmoviesHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "star_movies_select_hd",
     "name": "Star Movies Select HD",
-    "logo": "http://localhost:5000/static/logos/starmoviesselectHD.png",
-    "url": "https://hd.ctghub.com/STAR.MOVIES.SEL.HD/index.m3u8?token=e152a5407ab3d363b011ff0b7cb34eacbf90a5c1-adbe12e3f0d6ced859b2d8be3bf384ab-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "starmoviesselectHD.png",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "tlc_hd",
     "name": "TLC HD",
-    "logo": "http://localhost:5000/static/logos/tlcHD.jpg",
-    "url": "https://hd.ctghub.com/TLC.HD/index.m3u8?token=d886ddc756fa959825e29376773cfd2ea5ff1a42-22c052a9e5406769af163499cbe76ae2-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "tlcHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "travel_xp",
     "name": "Travel XP",
-    "logo": "http://localhost:5000/static/logos/travelxpHD.jpg",
-    "url": "https://hd.ctghub.com/TRAVELXP.HD/index.m3u8?token=716062404a81eef53a72c88f8b2da5d02e013991-fc627821cbcab9c7cebe065c3b0701ea-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "travelxpHD.jpg",
+    "url": "",
+    "category": "Live TV"
   },
   {
     "id": "zee_cafe_hd",
     "name": "Zee Cafe HD",
-    "logo": "http://localhost:5000/static/logos/zeecafe.jpg",
-    "url": "https://hd.ctghub.com/ZEE.CAFE.HD/index.m3u8?token=fa4b25ada041a3a53e9f8cec128dbf53e3cf69b4-ba4963e4cefe098f8fcbe4eed307db16-1781427256-1781416456&remote=no_check_ip"
+    "logo_file": "zeecafe.jpg",
+    "url": "",
+    "category": "Live TV"
   }
 ]

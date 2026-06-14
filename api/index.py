@@ -168,7 +168,7 @@ def load_channels(force=False):
         base_url = get_base_url()
         local_logos = get_local_logos()
         for ch in seed_channels:
-            logo_val = os.path.basename(ch.get("logo", ""))
+            logo_val = ch.get("logo_file", os.path.basename(ch.get("logo", "")))
             logo_lower = logo_val.lower()
             if logo_lower in local_logos:
                 ch["logo"] = f"{base_url}static/logos/{local_logos[logo_lower]}"
@@ -327,7 +327,7 @@ def get_m3u_playlist():
             
         m3u_content += (
             f'#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
-            f'group-title="{category}",{channel["name"]}\n'
+            f'tvg-name="{channel["name"]}" group-title="{category}",{channel["name"]}\n'
             f'{stream_url}\n'
         )
         
