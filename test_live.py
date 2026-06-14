@@ -1,17 +1,46 @@
 import requests
 import re
-import time
+import json
 
 def test_live():
-    url = "https://hd.ctghub.com/T-SPORTS-HD/index.m3u8?token=160442ee76b6b9dba1e54ffc6c4495dd28edda60-9845d8805b3da0009f4ac335cdf688cd-1781201475-1781190675&remote=no_check_ip"
+    print("Fetching fresh playlist to get active T-Sports token...")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
     
+    url = ""
+    try:
+        # Try local api first if running
+        r = requests.get("http://localhost:5000/api/channels", timeout=3)
+        channels = r.json()
+        tsports = next((c for c in channels if "t_sports" in c["id"]), None)
+        url = tsports["url"]
+    except Exception:
+        # Fallback to direct scraping
+        try:
+            r = requests.get("https://ajobtv.com/", headers=headers, timeout=10)
+            match = re.search(r'(?:const|var|let)\s+channels\s*=\s*(\[[\s\S]*?\]);', r.text)
+            if match:
+                data = json.loads(match.group(1))
+                tsports = next((c for c in data if "T-Sports" in c.get("name", "") or "T Sports" in c.get("name", "")), None)
+                if tsports:
+                    url = tsports.get("play_url", "")
+                    if url and "remote=" not in url:
+                        sep = "&" if "?" in url else "?"
+                        url += f"{sep}remote=no_check_ip"
+        except Exception as e:
+            print("Failed to scrape direct:", e)
+
+    if not url:
+        print("T-Sports URL not found or could not be scraped!")
+        return
+
+    print(f"Using live URL: {url}")
+    
     # 1. Fetch index playlist
     print("Fetching index playlist...")
     r = requests.get(url, headers=headers)
-    print(r.status_code)
+    print("Index status:", r.status_code)
     print(r.text)
     
     # Extract sub-playlist URI (e.g. tracks-v1a1/mono.m3u8?token=...)
@@ -26,7 +55,7 @@ def test_live():
     
     # 2. Fetch sub-playlist
     r2 = requests.get(sub_url, headers=headers)
-    print(r2.status_code)
+    print("Sub-playlist status:", r2.status_code)
     print(r2.text)
     
     # Extract the last segment (latest)
