@@ -201,6 +201,36 @@ def add_header(response):
     response.headers['Expires'] = '0'
     return response
 
+@app.route("/api/debug")
+def debug_scrape():
+    url = "https://ajobtv.com/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/',
+    }
+    result = {
+        "url": url,
+        "success": False,
+        "status_code": None,
+        "error": None,
+        "content_length": 0,
+        "headers": {},
+        "html_preview": ""
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        result["status_code"] = r.status_code
+        result["headers"] = dict(r.headers)
+        result["content_length"] = len(r.text)
+        result["html_preview"] = r.text[:1000]
+        if r.status_code == 200:
+            result["success"] = True
+    except Exception as e:
+        result["error"] = str(e)
+    return jsonify(result)
+
 @app.route("/api/channels")
 def get_channels():
     return jsonify(load_channels())
