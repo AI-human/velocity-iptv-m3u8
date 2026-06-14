@@ -133,18 +133,38 @@ def load_channels(force=False):
     # Scrape fresh channels from ajobtv
     channels = scrape_all_channels()
     
+    # If scraping fails (blocked on Vercel), load from the GitHub Gist
+    if not channels:
+        gist_url = "https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/channels.json"
+        print(f"Direct scrape failed or blocked. Fetching from Gist: {gist_url}")
+        try:
+            resp = requests.get(gist_url, timeout=10)
+            if resp.status_code == 200:
+                channels = resp.json()
+                print(f"Successfully loaded {len(channels)} channels from Gist.")
+            else:
+                print(f"Failed to load from Gist: HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"Error fetching from Gist: {e}")
+    
     if channels:
         base_url = get_base_url()
         local_logos = get_local_logos()
         
         for ch in channels:
             logo_val = ch.get("logo", "")
-            logo_lower = logo_val.lower()
+            # If the logo is already a full URL path
+            if logo_val.startswith("http"):
+                logo_filename = os.path.basename(logo_val)
+            else:
+                logo_filename = logo_val
+                
+            logo_lower = logo_filename.lower()
             
             if logo_lower in local_logos:
                 ch["logo"] = f"{base_url}static/logos/{local_logos[logo_lower]}"
-            elif logo_val:
-                ch["logo"] = f"https://ajobtv.com/assets/images/channels/{logo_val}"
+            elif logo_filename:
+                ch["logo"] = f"https://ajobtv.com/assets/images/channels/{logo_filename}"
             else:
                 ch["logo"] = ""
                 
@@ -153,7 +173,7 @@ def load_channels(force=False):
         return cached_channels
         
     if cached_channels:
-        print("WARNING: Scrape failed. Serving stale in-memory cache.")
+        print("WARNING: Scrape and Gist load failed. Serving stale in-memory cache.")
         return cached_channels
         
     seed_channels = []
@@ -311,30 +331,11 @@ def update_channels_data():
 @app.route("/playlist.m3u8")
 @app.route("/playlist")
 def get_m3u_playlist():
-    force = request.args.get("fresh") == "true"
-    channels = load_channels(force=force)
-    
-    m3u_content = "#EXTM3U\n"
-    use_direct = request.args.get("direct") == "true"
-    base_url = get_base_url()
-    
-    for channel in channels:
-        logo_part = f' tvg-logo="{channel.get("logo", "")}"' if channel.get("logo") else ''
-        category = channel.get("category", "Live TV")
-        if use_direct:
-            stream_url = channel.get("url", "")
-        else:
-            stream_url = f"{base_url}live/{channel['id']}.m3u8"
-            
-        m3u_content += (
-            f'#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
-            f'tvg-name="{channel["name"]}" group-title="{category}",{channel["name"]}\n'
-            f'{stream_url}\n'
-        )
-        
-    response = Response(m3u_content, mimetype="application/x-mpegurl; charset=utf-8")
-    response.headers["Content-Disposition"] = 'attachment; filename="playlist.m3u"'
-    return response
+    path = request.path
+    if path.endswith(".m3u8"):
+        return redirect("https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/playlist.m3u8")
+    else:
+        return redirect("https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/playlist.m3u")
 
 @app.route("/live-sub/<path:subpath>")
 def live_sub(subpath):
