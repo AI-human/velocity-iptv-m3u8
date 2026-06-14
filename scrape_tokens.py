@@ -11,7 +11,8 @@ load_dotenv()
 
 GIST_ID = os.getenv("GITHUB_GIST_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GIST_FILENAME = "playlist.m3u"
+# We will write both files so both extensions work
+GIST_FILENAMES = ["playlist.m3u", "playlist.m3u8"]
 
 def scrape_channels():
     url = "https://ajobtv.com/"
@@ -129,25 +130,29 @@ def update_gist(m3u_data):
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
+    
+    files_payload = {}
+    for filename in GIST_FILENAMES:
+        files_payload[filename] = {"content": m3u_data}
+        
     payload = {
         "description": "Velocity IPTV Live M3U Playlist - Auto Updated",
-        "files": {
-            GIST_FILENAME: {
-                "content": m3u_data
-            }
-        }
+        "files": files_payload
     }
     
-    print(f"Updating Gist {GIST_ID}...")
+    print(f"Updating Gist {GIST_ID} with both files...")
     try:
         response = requests.patch(url, headers=headers, json=payload)
         if response.status_code == 200:
             data = response.json()
-            raw_url = data["files"][GIST_FILENAME]["raw_url"]
             print("\nSUCCESS! Gist updated successfully.")
-            print(f"Your raw M3U Playlist URL for VLC/TV:")
+            print(f"Your raw Playlist URLs for VLC/TV:")
             print("-" * 60)
-            print(raw_url)
+            for filename in GIST_FILENAMES:
+                raw_url = data["files"][filename]["raw_url"]
+                # Clean versioned part from url so it's always the latest permanent link
+                clean_url = re.sub(r'/raw/[a-f0-9]+/', '/raw/', raw_url)
+                print(f"{filename}: {clean_url}")
             print("-" * 60)
             return True
         else:
