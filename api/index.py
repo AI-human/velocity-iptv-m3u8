@@ -19,6 +19,11 @@ JSON_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "channels.json")
 # Prevent caching of all responses in the client/browser except static assets (logos)
 @app.after_request
 def add_header(response):
+    # Enable CORS globally for older Android TV platforms, web players, and external apps
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000'
         response.headers.pop('Pragma', None)
@@ -28,6 +33,14 @@ def add_header(response):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
+
+def get_base_url():
+    """Dynamically resolves the external scheme and host for Vercel/reverse proxies."""
+    try:
+        scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
+        return f"{scheme}://{request.host}/"
+    except Exception:
+        return "/"
 
 def scrape_fresh_tokens():
     """Scrapes the live website and parses the channels JSON array to get fresh play URLs."""
@@ -56,12 +69,12 @@ def scrape_fresh_tokens():
         
     return found_urls
 
-def load_channels():
+def load_channels(force=False):
     global cached_channels, last_cache_time
     
     current_time = time.time()
-    # Return memory cache if it's still valid
-    if cached_channels and (current_time - last_cache_time < CACHE_EXPIRY):
+    # Return memory cache if it's still valid and not forced
+    if not force and cached_channels and (current_time - last_cache_time < CACHE_EXPIRY):
         return cached_channels
 
     # Load base channels list
@@ -69,7 +82,7 @@ def load_channels():
     if os.path.exists(JSON_FILE_PATH):
         try:
             with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
-                # Deep copy to prevent mutating the original reference
+                # Load channels from database file
                 channels = json.load(f)
         except Exception as e:
             print(f"Error reading JSON database: {e}")
@@ -78,42 +91,143 @@ def load_channels():
     # Fetch fresh tokenized URLs
     fresh_links = scrape_fresh_tokens()
     
-    # Merge fresh tokens into our channel structure matching by base stream path
-    for ch in channels:
-        base_url = ch["url"].split('?')[0]
-        if base_url in fresh_links:
-            ch["url"] = fresh_links[base_url]
-            
-        # Fix logo URL dynamically to use our own hosted static logos
-        if ch.get("logo"):
-            logo_file = os.path.basename(ch["logo"])
-            ch["logo"] = f"{request.host_url}static/logos/{logo_file}"
+    # Check if we got any fresh links before merging/updating
+    if fresh_links:
+        # Merge fresh tokens into our channel structure matching by base stream path
+        for ch in channels:
+            base_url = ch["url"].split('?')[0]
+            if base_url in fresh_links:
+                ch["url"] = fresh_links[base_url]
+                
+            # Fix logo URL dynamically to use our own hosted static logos
+            if ch.get("logo"):
+                logo_file = os.path.basename(ch["logo"])
+                ch["logo"] = f"{get_base_url()}static/logos/{logo_file}"
+                
+        # Try to persist the updated channels back to channels.json if possible
+        # (fails gracefully on read-only serverless environments like Vercel)
+        try:
+            with open(JSON_FILE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(channels, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not write updated channels to file: {e}")
 
-    # Save to cache
-    cached_channels = channels
-    last_cache_time = current_time
-    
-    return channels
+        # Update cache only if scrape was successful
+        cached_channels = channels
+        last_cache_time = current_time
+    else:
+        # If scrape failed but we have a memory cache, keep using the memory cache
+        # Otherwise, load channel details without token update
+        if not cached_channels:
+            # Fix logo URLs even if scrape failed
+            for ch in channels:
+                if ch.get("logo"):
+                    logo_file = os.path.basename(ch["logo"])
+                    ch["logo"] = f"{get_base_url()}static/logos/{logo_file}"
+            cached_channels = channels
+            last_cache_time = current_time
+
+    return cached_channels
+
 
 @app.route("/api/channels")
 def get_channels():
     return jsonify(load_channels())
 
 @app.route("/playlist.m3u")
+@app.route("/playlist.m3u8")
+@app.route("/playlist")
 def get_m3u_playlist():
     channels = load_channels()
     m3u_content = "#EXTM3U\n"
     
+    # Use direct URLs in the playlist if ?direct=true is requested, otherwise use proxied URLs
+    use_direct = request.args.get("direct") == "true"
+    base_url = get_base_url()
+    
     for channel in channels:
         logo_part = f' tvg-logo="{channel["logo"]}"' if channel["logo"] else ''
-        redirect_url = f"{request.host_url}live/{channel['id']}.m3u8"
+        if use_direct:
+            stream_url = channel["url"]
+        else:
+            stream_url = f"{base_url}live/{channel['id']}.m3u8"
+            
         m3u_content += (
             f'#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
             f'group-title="Live TV",{channel["name"]}\n'
-            f'{redirect_url}\n'
+            f'{stream_url}\n'
         )
         
-    return Response(m3u_content, mimetype="text/plain")
+    # We use 'application/x-mpegurl; charset=utf-8' for maximum compatibility with IPTV software/hardware
+    response = Response(m3u_content, mimetype="application/x-mpegurl; charset=utf-8")
+    response.headers["Content-Disposition"] = 'attachment; filename="playlist.m3u"'
+    return response
+
+@app.route("/api/channels/refresh", methods=["GET", "POST"])
+def refresh_channels():
+    # Force a scrape by passing force=True
+    channels = load_channels(force=True)
+    
+    # We can inspect if the fresh URLs have tokens to verify success
+    has_tokens = any("token=" in ch["url"] for ch in channels)
+    if not has_tokens:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to scrape fresh tokens from ajobtv. Please check server logs."
+        }), 500
+        
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully refreshed {len(channels)} channels from ajobtv",
+        "channels": channels
+    })
+
+@app.route("/live-sub/<path:subpath>")
+def live_sub(subpath):
+    args = request.args
+    target_url = f"https://hd.ctghub.com/{subpath}"
+    if args:
+        params = []
+        for k, v in args.items():
+            params.append(f"{k}={v}")
+        target_url += "?" + "&".join(params)
+        
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    try:
+        r = requests.get(target_url, headers=headers, timeout=6, allow_redirects=True)
+        if r.status_code == 200:
+            final_url = r.url
+            content = r.text
+            
+            # Rewrite relative TS segment URLs to absolute and append &remote=no_check_ip
+            from urllib.parse import urljoin
+            lines = content.splitlines()
+            new_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped:
+                    continue
+                if line_stripped.startswith('#'):
+                    new_lines.append(line_stripped)
+                else:
+                    resolved = urljoin(final_url, line_stripped)
+                    if "token=" in resolved and "remote=" not in resolved:
+                        sep = "&" if "?" in resolved else "?"
+                        resolved += f"{sep}remote=no_check_ip"
+                    new_lines.append(resolved)
+                    
+            response = Response('\n'.join(new_lines), mimetype="application/vnd.apple.mpegurl")
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            return response
+    except Exception as e:
+        print(f"Sub-playlist proxy error for {subpath}: {e}")
+        
+    response = redirect(target_url, code=302)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 @app.route("/live/<channel_id>.m3u8")
 def live_channel(channel_id):
@@ -121,7 +235,72 @@ def live_channel(channel_id):
     channel = next((c for c in channels if c["id"] == channel_id), None)
     if not channel:
         return "Channel not found", 404
-    return redirect(channel["url"], code=302)
+        
+    target_url = channel["url"]
+    
+    # If the player explicitly requests a 302 redirect
+    if request.args.get("redirect") == "true":
+        response = redirect(target_url, code=302)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+
+    # Default: Proxy the main index .m3u8 playlist to prevent 302 redirect.
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    try:
+        r = requests.get(target_url, headers=headers, timeout=6, allow_redirects=True)
+        if r.status_code == 200:
+            final_url = r.url
+            content = r.text
+            
+            # Rewrite relative URLs to absolute URLs and wrap with our sub-playlist proxy
+            from urllib.parse import urljoin
+            lines = content.splitlines()
+            new_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped:
+                    continue
+                if line_stripped.startswith('#'):
+                    # Search and replace any relative URI attributes (e.g., URI="key.key")
+                    def replace_uri(match):
+                        uri = match.group(1)
+                        resolved_uri = urljoin(final_url, uri)
+                        if "token=" in resolved_uri and "remote=" not in resolved_uri:
+                            separator = "&" if "?" in resolved_uri else "?"
+                            resolved_uri += f"{separator}remote=no_check_ip"
+                        # Redirect sub-playlist through our proxy
+                        resolved_uri = resolved_uri.replace("https://hd.ctghub.com/", f"{get_base_url()}live-sub/")
+                        return f'URI="{resolved_uri}"'
+                    processed_line = re.sub(r'URI="([^"]+)"', replace_uri, line)
+                    new_lines.append(processed_line)
+                else:
+                    # Resolve relative URL line
+                    resolved_line = urljoin(final_url, line_stripped)
+                    if "token=" in resolved_line and "remote=" not in resolved_line:
+                        separator = "&" if "?" in resolved_line else "?"
+                        resolved_line += f"{separator}remote=no_check_ip"
+                    # Redirect sub-playlist through our proxy
+                    resolved_line = resolved_line.replace("https://hd.ctghub.com/", f"{get_base_url()}live-sub/")
+                    new_lines.append(resolved_line)
+            
+            proxied_m3u8 = "\n".join(new_lines)
+            
+            # Serve as HLS playlist mimetype
+            response = Response(proxied_m3u8, mimetype="application/vnd.apple.mpegurl")
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            return response
+            
+    except Exception as e:
+        print(f"Error proxying stream from {target_url}: {e}")
+        
+    # Fallback to redirect if proxying fails (e.g. timeout or fetch failure)
+    response = redirect(target_url, code=302)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
 
 @app.route("/")
 def index():
@@ -288,6 +467,7 @@ HTML_TEMPLATE = """
                 <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Direct Stream URL</a>
                 <button id="play-browser-btn" class="btn btn-secondary">Play in Browser</button>
                 <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Get M3U Playlist</a>
+                <button id="refresh-tokens-btn" class="btn" style="background: #007aff;">Refresh Tokens</button>
             </div>
         </div>
     </div>
@@ -298,6 +478,7 @@ HTML_TEMPLATE = """
         var video = document.getElementById('video');
         var playerWrapper = document.getElementById('player-wrapper');
         var playBrowserBtn = document.getElementById('play-browser-btn');
+        var refreshBtn = document.getElementById('refresh-tokens-btn');
         var hls = null;
         var activeCard = null;
         var currentUrl = "";
@@ -374,6 +555,44 @@ HTML_TEMPLATE = """
                 alert("Please select a channel first!");
             }
         };
+
+        if (refreshBtn) {
+            refreshBtn.onclick = function() {
+                var originalText = refreshBtn.innerText;
+                refreshBtn.innerText = "Refreshing...";
+                refreshBtn.disabled = true;
+                refreshBtn.style.opacity = "0.6";
+                
+                fetch('/api/channels/refresh')
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        refreshBtn.innerText = "Refreshed!";
+                        setTimeout(function() {
+                            refreshBtn.innerText = originalText;
+                            refreshBtn.disabled = false;
+                            refreshBtn.style.opacity = "1";
+                        }, 2000);
+                        
+                        if (data && data.channels && data.channels.length > 0) {
+                            var channels = data.channels;
+                            storage.setItem('iptv_channels', JSON.stringify(channels));
+                            updateChannelUrls(channels);
+                        } else {
+                            alert("Refresh completed, but no channels returned.");
+                        }
+                    })
+                    .catch(function(e) {
+                        console.error("Error refreshing tokens", e);
+                        refreshBtn.innerText = "Failed!";
+                        setTimeout(function() {
+                            refreshBtn.innerText = originalText;
+                            refreshBtn.disabled = false;
+                            refreshBtn.style.opacity = "1";
+                        }, 2000);
+                        alert("Failed to refresh tokens. Please try again.");
+                    });
+            };
+        }
 
         function handleImageError(img, name) {
             img.src = 'https://via.placeholder.com/150/1c1c1e/ffffff?text=' + encodeURIComponent(name);
