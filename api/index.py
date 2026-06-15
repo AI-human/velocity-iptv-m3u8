@@ -4,7 +4,7 @@ import json
 import time
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, Response, jsonify, render_template_string, request, redirect
+from flask import Flask, Response, jsonify, render_template_string, request, redirect, make_response
 
 app = Flask(__name__)
 
@@ -635,7 +635,9 @@ def _proxy_m3u8(target_url):
 
 @app.route("/")
 def index():
-    return render_template_string(HTML_TEMPLATE)
+    resp = make_response(render_template_string(HTML_TEMPLATE))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
 
 # HTML Template optimized for low footprint and multiple TV/Android Player integrations
 HTML_TEMPLATE = """<!DOCTYPE html>
