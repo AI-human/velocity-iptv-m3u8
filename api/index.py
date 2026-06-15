@@ -123,6 +123,28 @@ def scrape_all_channels():
         print(f"Error scraping tokens: {e}")
         return []
 
+def get_default_4k_channels():
+    return [
+        {
+            "id": "golive_4k",
+            "name": "GoLive 4K",
+            "logo": "https://img.icons8.com/color/144/4k-resolution.png",
+            "url": "http://203.18.159.180/GoLIve/index.m3u8",
+            "stream_source": "http://203.18.159.180/GoLIve/index.m3u8",
+            "category": "4K",
+            "scraped_at": int(time.time())
+        },
+        {
+            "id": "hdr_4k",
+            "name": "HDR 4K",
+            "logo": "https://img.icons8.com/color/144/4k-resolution.png",
+            "url": "http://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
+            "stream_source": "http://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
+            "category": "4K",
+            "scraped_at": int(time.time())
+        }
+    ]
+
 def load_channels(force=False):
     global cached_channels, last_cache_time
     
@@ -151,9 +173,18 @@ def load_channels(force=False):
         base_url = get_base_url()
         local_logos = get_local_logos()
         
+        # Merge default 4K channels dynamically
+        existing_ids = {ch["id"] for ch in channels}
+        for ch in get_default_4k_channels():
+            if ch["id"] not in existing_ids:
+                channels.append(ch)
+        
         for ch in channels:
             logo_val = ch.get("logo", "")
-            # If the logo is already a full URL path
+            # If the logo is already a full URL path and not from ajobtv, keep it
+            if logo_val.startswith("http") and "ajobtv.com" not in logo_val:
+                continue
+                
             if logo_val.startswith("http"):
                 logo_filename = os.path.basename(logo_val)
             else:
@@ -187,10 +218,19 @@ def load_channels(force=False):
     if seed_channels:
         base_url = get_base_url()
         local_logos = get_local_logos()
+        
+        # Merge default 4K channels dynamically
+        existing_ids = {ch["id"] for ch in seed_channels}
+        for ch in get_default_4k_channels():
+            if ch["id"] not in existing_ids:
+                seed_channels.append(ch)
+                
         for ch in seed_channels:
             logo_val = ch.get("logo_file", os.path.basename(ch.get("logo", "")))
             logo_lower = logo_val.lower()
-            if logo_lower in local_logos:
+            if logo_val.startswith("http") and "ajobtv.com" not in logo_val:
+                ch["logo"] = logo_val
+            elif logo_lower in local_logos:
                 ch["logo"] = f"{base_url}static/logos/{local_logos[logo_lower]}"
             else:
                 ch["logo"] = ""
@@ -339,7 +379,23 @@ def get_m3u_playlist():
     try:
         resp = requests.get(gist_url, timeout=10)
         if resp.status_code == 200:
-            response = Response(resp.text, mimetype="application/x-mpegurl; charset=utf-8")
+            m3u_content = resp.text.strip()
+            has_appended = False
+            for channel in get_default_4k_channels():
+                if channel["id"] not in m3u_content and channel["url"] not in m3u_content:
+                    logo_part = f' tvg-logo="{channel.get("logo", "")}"' if channel.get("logo") else ''
+                    category = channel.get("category", "4K")
+                    stream_url = channel.get("url", "")
+                    m3u_content += (
+                        f'\n#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
+                        f'tvg-name="{channel["name"]}" group-title="{category}",{channel["name"]}\n'
+                        f'{stream_url}'
+                    )
+                    has_appended = True
+            if has_appended:
+                m3u_content += "\n"
+                
+            response = Response(m3u_content, mimetype="application/x-mpegurl; charset=utf-8")
             response.headers["Access-Control-Allow-Origin"] = "*"
             return response
         else:
@@ -445,6 +501,80 @@ def live_channel(channel_id):
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
 
+@app.route("/api/proxy")
+def generic_proxy():
+    target_url = request.args.get("url")
+    if not target_url:
+        return "Missing url parameter", 400
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    
+    try:
+        r = requests.get(target_url, headers=headers, timeout=10, allow_redirects=True, stream=True)
+        if r.status_code != 200:
+            return f"Upstream returned status {r.status_code}", r.status_code
+            
+        content_type = r.headers.get("Content-Type", "")
+        is_m3u8 = "mpegurl" in content_type.lower() or "apple.mpegurl" in content_type.lower() or target_url.split('?')[0].endswith(".m3u8")
+        
+        if is_m3u8:
+            content = r.text
+            final_url = r.url
+            base_url = get_base_url()
+            
+            from urllib.parse import urljoin, quote
+            lines = content.splitlines()
+            new_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped:
+                    continue
+                if line_stripped.startswith('#'):
+                    def replace_uri(match):
+                        uri = match.group(1)
+                        resolved_uri = urljoin(final_url, uri)
+                        if "token=" in resolved_uri and "remote=" not in resolved_uri:
+                            separator = "&" if "?" in resolved_uri else "?"
+                            resolved_uri += f"{separator}remote=no_check_ip"
+                        
+                        if "hd.ctghub.com" in resolved_uri:
+                            resolved_uri = resolved_uri.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                        else:
+                            resolved_uri = f"{base_url}api/proxy?url={quote(resolved_uri)}"
+                        return f'URI="{resolved_uri}"'
+                    processed_line = re.sub(r'URI="([^"]+)"', replace_uri, line_stripped)
+                    new_lines.append(processed_line)
+                else:
+                    resolved_line = urljoin(final_url, line_stripped)
+                    if "token=" in resolved_line and "remote=" not in resolved_line:
+                        separator = "&" if "?" in resolved_line else "?"
+                        resolved_line += f"{separator}remote=no_check_ip"
+                    
+                    if "hd.ctghub.com" in resolved_line:
+                        resolved_line = resolved_line.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                    else:
+                        resolved_line = f"{base_url}api/proxy?url={quote(resolved_line)}"
+                    new_lines.append(resolved_line)
+                    
+            proxied_m3u8 = "\n".join(new_lines)
+            response = Response(proxied_m3u8, mimetype="application/vnd.apple.mpegurl")
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            return response
+        else:
+            def generate():
+                for chunk in r.iter_content(chunk_size=4096):
+                    yield chunk
+            response = Response(generate(), mimetype=content_type)
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Cache-Control"] = "public, max-age=10"
+            return response
+    except Exception as e:
+        print(f"Generic proxy error for {target_url}: {e}")
+        return str(e), 500
+
 def _proxy_m3u8(target_url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -460,7 +590,7 @@ def _proxy_m3u8(target_url):
         content = r.text
         base_url = get_base_url()
         
-        from urllib.parse import urljoin
+        from urllib.parse import urljoin, quote
         lines = content.splitlines()
         new_lines = []
         for line in lines:
@@ -474,7 +604,11 @@ def _proxy_m3u8(target_url):
                     if "token=" in resolved_uri and "remote=" not in resolved_uri:
                         separator = "&" if "?" in resolved_uri else "?"
                         resolved_uri += f"{separator}remote=no_check_ip"
-                    resolved_uri = resolved_uri.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                    
+                    if "hd.ctghub.com" in resolved_uri:
+                        resolved_uri = resolved_uri.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                    else:
+                        resolved_uri = f"{base_url}api/proxy?url={quote(resolved_uri)}"
                     return f'URI="{resolved_uri}"'
                 processed_line = re.sub(r'URI="([^"]+)"', replace_uri, line_stripped)
                 new_lines.append(processed_line)
@@ -483,7 +617,11 @@ def _proxy_m3u8(target_url):
                 if "token=" in resolved_line and "remote=" not in resolved_line:
                     separator = "&" if "?" in resolved_line else "?"
                     resolved_line += f"{separator}remote=no_check_ip"
-                resolved_line = resolved_line.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                
+                if "hd.ctghub.com" in resolved_line:
+                    resolved_line = resolved_line.replace("https://hd.ctghub.com/", f"{base_url}live-sub/")
+                else:
+                    resolved_line = f"{base_url}api/proxy?url={quote(resolved_line)}"
                 new_lines.append(resolved_line)
                 
         proxied_m3u8 = "\n".join(new_lines)
@@ -793,6 +931,105 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             color: #fff;
         }
 
+        .tab.tab-4k {
+            border-color: #ffd700;
+            color: #ffd700;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
+        }
+
+        .tab.tab-4k.active {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            border-color: #ffd700;
+            color: #000;
+            text-shadow: none;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            position: relative;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #fff;
+            background: linear-gradient(135deg, #fff 40%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.8rem;
+            font-weight: 300;
+            border: none;
+            background: none;
+            outline: none;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px rgba(0, 122, 255, 0.15);
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -827,6 +1064,36 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             box-shadow: var(--glow-shadow);
         }
 
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 59, 48, 0.85);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10;
+            opacity: 0;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: #ff2d55;
+            transform: scale(1.15);
+        }
+
         .card img {
             width: 100%;
             height: 70px;
@@ -854,6 +1121,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             border-radius: 8px;
             font-weight: 700;
             text-transform: uppercase;
+        }
+
+        .card-badge[data-category="4K"] {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            color: #000;
         }
 
         /* Toast notifications */
@@ -950,6 +1222,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Get Direct Stream Link</a>
                     <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Download M3U8 Playlist</a>
                     <button id="refresh-tokens-btn" class="btn btn-blue">Refresh Stream Tokens</button>
+                    <button id="add-4k-btn" class="btn" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #000; font-weight: 700; border: none; box-shadow: 0 0 10px rgba(255,215,0,0.2);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; stroke: #000;">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Add 4K Playlist / Link
+                    </button>
                 </div>
             </div>
         </div>
@@ -970,6 +1249,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="grid" id="channels-grid"></div>
     </div>
 
+    <!-- Modal for adding custom 4K channel/playlist -->
+    <div class="modal-overlay" id="add-4k-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            <div class="modal-header">Add 4K Playlist or Stream</div>
+            <div class="form-group">
+                <label for="input-4k-name">Channel or Playlist Name</label>
+                <input type="text" id="input-4k-name" placeholder="e.g. Ultra HD Sports or My 4K Playlist">
+            </div>
+            <div class="form-group">
+                <label for="input-4k-url">M3U8 Stream URL or M3U Playlist URL</label>
+                <input type="text" id="input-4k-url" placeholder="http://example.com/stream.m3u8">
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 20px; line-height: 1.4;">
+                * If a single stream URL is provided, it will be added as one channel.<br>
+                * If an M3U playlist link is provided, all channels inside it will be imported.
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="save-4k-btn" style="flex: 1;">Save to 4K Grid</button>
+                <button class="btn btn-secondary" id="cancel-4k-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script>
@@ -979,6 +1282,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         var playBrowserBtn = document.getElementById('play-browser-btn');
         var refreshBtn = document.getElementById('refresh-tokens-btn');
         var searchInput = document.getElementById('search-input');
+        
+        var add4kBtn = document.getElementById('add-4k-btn');
+        var add4kModal = document.getElementById('add-4k-modal');
+        var cancel4kBtn = document.getElementById('cancel-4k-btn');
+        var modalCloseBtn = document.getElementById('modal-close-btn');
+        var save4kBtn = document.getElementById('save-4k-btn');
+        var inputName = document.getElementById('input-4k-name');
+        var inputUrl = document.getElementById('input-4k-url');
         
         var hls = null;
         var activeCard = null;
@@ -1179,7 +1490,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     // Use channels returned directly in the response to avoid Vercel cold-start cache miss
                     var updated = (res.channels && res.channels.length > 0) ? res.channels : null;
                     if (updated) {
-                        allChannels = updated;
+                        allChannels = mergeCustomChannels(updated);
                         storage.setItem('iptv_channels', JSON.stringify(allChannels));
                         updateCategoryTabs(allChannels);
                         renderChannels(allChannels);
@@ -1190,7 +1501,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             .then(function(r) { return r.json(); })
                             .then(function(fetched) {
                                 if (fetched && fetched.length > 0) {
-                                    allChannels = fetched;
+                                    allChannels = mergeCustomChannels(fetched);
                                     storage.setItem('iptv_channels', JSON.stringify(allChannels));
                                     updateCategoryTabs(allChannels);
                                     renderChannels(allChannels);
@@ -1248,11 +1559,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             performClientScrape(
                 function(channels) {
-                    var currentCh = channels.find(function(c) { return c.id === currentChannelId; });
+                    var merged = mergeCustomChannels(channels);
+                    allChannels = merged;
+                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                    
+                    var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
                     if (currentCh) {
                         var card = document.getElementById('channel-card-' + currentCh.id);
                         if (card) selectChannel(currentCh, card);
-                        loadBrowserPlayer(currentCh.url);
+                        var playUrl = currentCh.url;
+                        if (currentCh.url.indexOf('http://') === 0 && currentCh.url.indexOf('hd.ctghub.com') === -1) {
+                            playUrl = '/api/proxy?url=' + encodeURIComponent(currentCh.url);
+                        }
+                        loadBrowserPlayer(playUrl);
                         showToast("Token refreshed! Resuming play...", "success");
                     }
                     refreshBtn.innerText = originalText;
@@ -1269,7 +1588,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         playBrowserBtn.onclick = function() {
             if (currentUrl) {
-                loadBrowserPlayer(currentUrl);
+                var playUrl = currentUrl;
+                if (currentUrl.indexOf('http://') === 0 && currentUrl.indexOf('hd.ctghub.com') === -1) {
+                    playUrl = '/api/proxy?url=' + encodeURIComponent(currentUrl);
+                }
+                loadBrowserPlayer(playUrl);
             } else {
                 showToast("Please select a channel first!", "warning");
             }
@@ -1283,8 +1606,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 
                 performClientScrape(
                     function(channels) {
+                        allChannels = mergeCustomChannels(channels);
+                        storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                        updateCategoryTabs(allChannels);
+                        renderChannels(allChannels);
+                        
                         if (currentChannelId) {
-                            var currentCh = channels.find(function(c) { return c.id === currentChannelId; });
+                            var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
                             if (currentCh) {
                                 var card = document.getElementById('channel-card-' + currentCh.id);
                                 if (card) selectChannel(currentCh, card);
@@ -1309,9 +1637,54 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             img.onerror = null;
         }
 
+        function getCustom4KChannels() {
+            var cached = storage.getItem('custom_4k_channels');
+            if (cached) {
+                try {
+                    return JSON.parse(cached);
+                } catch (e) {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        function mergeCustomChannels(channels) {
+            var customChs = getCustom4KChannels();
+            var existingIds = {};
+            channels.forEach(function(c) { existingIds[c.id] = true; });
+            customChs.forEach(function(c) {
+                if (!existingIds[c.id]) {
+                    channels.push(c);
+                }
+            });
+            return channels;
+        }
+
+        function deleteCustomChannel(id) {
+            var customChs = getCustom4KChannels();
+            var filteredChs = customChs.filter(function(c) { return c.id !== id; });
+            storage.setItem('custom_4k_channels', JSON.stringify(filteredChs));
+            
+            allChannels = allChannels.filter(function(c) { return c.id !== id; });
+            storage.setItem('iptv_channels', JSON.stringify(allChannels));
+            
+            if (currentChannelId === id) {
+                currentChannelId = null;
+                currentUrl = null;
+            }
+            
+            updateCategoryTabs(allChannels);
+            renderChannels(allChannels);
+            showToast("Channel deleted successfully", "success");
+        }
+
+        function reClean(str) {
+            return str.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        }
+
         function updateCategoryTabs(channels) {
             var tabsContainer = document.getElementById('category-tabs');
-            // Keep "All" tab
             tabsContainer.innerHTML = '<button class="tab active" data-category="ALL">All Categories</button>';
             
             var categories = {};
@@ -1321,13 +1694,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             
             Object.keys(categories).sort().forEach(function(cat) {
                 var tab = document.createElement('button');
-                tab.className = 'tab';
+                tab.className = 'tab' + (cat === '4K' ? ' tab-4k' : '');
                 tab.innerText = cat;
                 tab.setAttribute('data-category', cat);
                 tabsContainer.appendChild(tab);
             });
 
-            // Re-bind click handlers
             var tabs = tabsContainer.querySelectorAll('.tab');
             tabs.forEach(function(tab) {
                 tab.onclick = function() {
@@ -1368,15 +1740,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 var logoUrl = ch.logo || 'https://via.placeholder.com/150/14141c/ffffff?text=' + encodeURIComponent(ch.name);
                 var safeName = ch.name.replace(/'/g, "\\\\'");
                 
-                card.innerHTML = 
-                    (ch.category ? '<span class="card-badge">' + ch.category + '</span>' : '') +
+                var innerHTML = 
+                    (ch.category ? '<span class="card-badge" data-category="' + ch.category + '">' + ch.category + '</span>' : '') +
                     '<img src="' + logoUrl + '" alt="' + ch.name + '" onerror="handleImageError(this, \\\'' + safeName + '\\\')">' +
                     '<div class="card-name">' + ch.name + '</div>';
-                
+
+                if (ch.id && ch.id.indexOf('custom_') === 0) {
+                    innerHTML += '<button class="delete-btn" title="Delete Channel">&times;</button>';
+                }
+
+                card.innerHTML = innerHTML;
                 card.onclick = function() { selectChannel(ch, card); };
+
+                if (ch.id && ch.id.indexOf('custom_') === 0) {
+                    var delBtn = card.querySelector('.delete-btn');
+                    if (delBtn) {
+                        delBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            if (confirm("Are you sure you want to delete '" + ch.name + "'?")) {
+                                deleteCustomChannel(ch.id);
+                            }
+                        };
+                    }
+                }
+
                 grid.appendChild(card);
                 
-                // If it's initial load, select first card
                 if (!currentChannelId && idx === 0) {
                     selectChannel(ch, card);
                 }
@@ -1387,14 +1776,161 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             renderChannels(allChannels);
         };
 
+        add4kBtn.onclick = function() {
+            add4kModal.style.display = 'flex';
+            inputName.value = '';
+            inputUrl.value = '';
+        };
+
+        function hideModal() {
+            add4kModal.style.display = 'none';
+        }
+
+        cancel4kBtn.onclick = hideModal;
+        modalCloseBtn.onclick = hideModal;
+
+        save4kBtn.onclick = function() {
+            var name = inputName.value.trim();
+            var url = inputUrl.value.trim();
+
+            if (!name || !url) {
+                showToast("Please enter both Name and URL", "warning");
+                return;
+            }
+
+            save4kBtn.innerText = "Processing...";
+            save4kBtn.disabled = true;
+
+            var proxiedUrl = '/api/proxy?url=' + encodeURIComponent(url);
+            fetch(proxiedUrl)
+                .then(function(res) {
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    return res.text();
+                })
+                .then(function(text) {
+                    var customChs = getCustom4KChannels();
+                    
+                    if (text.indexOf('#EXTINF:') !== -1) {
+                        var lines = text.split(/\\r?\\n/);
+                        var addedCount = 0;
+                        var currentChannel = null;
+                        
+                        for (var i = 0; i < lines.length; i++) {
+                            var line = lines[i].trim();
+                            if (line.indexOf('#EXTINF:') === 0) {
+                                currentChannel = {};
+                                var commaIdx = line.lastIndexOf(',');
+                                if (commaIdx !== -1) {
+                                    currentChannel.name = line.substring(commaIdx + 1).trim();
+                                } else {
+                                    currentChannel.name = "Custom Channel " + (addedCount + 1);
+                                }
+                                var logoMatch = line.match(/tvg-logo="([^"]+)"/i);
+                                if (logoMatch) {
+                                    currentChannel.logo = logoMatch[1];
+                                }
+                            } else if (line && line.indexOf('#') !== 0) {
+                                if (currentChannel) {
+                                    currentChannel.url = line;
+                                    currentChannel.category = "4K";
+                                    currentChannel.id = 'custom_' + reClean(currentChannel.name) + '_' + Math.random().toString(36).substring(2, 7);
+                                    
+                                    if (line.indexOf('http://') !== 0 && line.indexOf('https://') !== 0) {
+                                        try {
+                                            var base = url.substring(0, url.lastIndexOf('/') + 1);
+                                            currentChannel.url = base + line;
+                                        } catch (e) {}
+                                    }
+                                    
+                                    customChs.push(currentChannel);
+                                    addedCount++;
+                                    currentChannel = null;
+                                }
+                            }
+                        }
+                        
+                        if (addedCount > 0) {
+                            storage.setItem('custom_4k_channels', JSON.stringify(customChs));
+                            showToast("Successfully imported " + addedCount + " channels from playlist!", "success");
+                        } else {
+                            showToast("No channels found in the playlist.", "warning");
+                        }
+                    } else {
+                        var newCh = {
+                            id: 'custom_' + reClean(name) + '_' + Math.random().toString(36).substring(2, 7),
+                            name: name,
+                            url: url,
+                            logo: "https://img.icons8.com/color/144/4k-resolution.png",
+                            category: "4K"
+                        };
+                        customChs.push(newCh);
+                        storage.setItem('custom_4k_channels', JSON.stringify(customChs));
+                        showToast("Successfully added single stream: " + name, "success");
+                    }
+                    
+                    allChannels = mergeCustomChannels(allChannels);
+                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                    
+                    activeCategory = '4K';
+                    updateCategoryTabs(allChannels);
+                    
+                    var tabs = document.querySelectorAll('.tab');
+                    tabs.forEach(function(t) {
+                        t.classList.remove('active');
+                        if (t.getAttribute('data-category') === '4K') {
+                            t.classList.add('active');
+                        }
+                    });
+                    
+                    renderChannels(allChannels);
+                    hideModal();
+                    save4kBtn.innerText = "Save to 4K Grid";
+                    save4kBtn.disabled = false;
+                })
+                .catch(function(err) {
+                    console.error("Error loading playlist:", err);
+                    var customChs = getCustom4KChannels();
+                    var newCh = {
+                        id: 'custom_' + reClean(name) + '_' + Math.random().toString(36).substring(2, 7),
+                        name: name,
+                        url: url,
+                        logo: "https://img.icons8.com/color/144/4k-resolution.png",
+                        category: "4K"
+                    };
+                    customChs.push(newCh);
+                    storage.setItem('custom_4k_channels', JSON.stringify(customChs));
+                    
+                    allChannels = mergeCustomChannels(allChannels);
+                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                    
+                    activeCategory = '4K';
+                    updateCategoryTabs(allChannels);
+                    
+                    var tabs = document.querySelectorAll('.tab');
+                    tabs.forEach(function(t) {
+                        t.classList.remove('active');
+                        if (t.getAttribute('data-category') === '4K') {
+                            t.classList.add('active');
+                        }
+                    });
+                    
+                    renderChannels(allChannels);
+                    showToast("Added as single channel (offline check)", "success");
+                    hideModal();
+                    save4kBtn.innerText = "Save to 4K Grid";
+                    save4kBtn.disabled = false;
+                });
+        };
+
         function init() {
             var cachedData = storage.getItem('iptv_channels');
             var hasLoadedFromCache = false;
 
             if (cachedData) {
                 try {
-                    allChannels = JSON.parse(cachedData);
-                    if (allChannels && allChannels.length > 0) {
+                    var parsed = JSON.parse(cachedData);
+                    if (parsed && parsed.length > 0) {
+                        allChannels = mergeCustomChannels(parsed);
                         updateCategoryTabs(allChannels);
                         renderChannels(allChannels);
                         hasLoadedFromCache = true;
@@ -1404,17 +1940,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }
             }
 
-            // Fetch from server first
             fetch('/api/channels')
                 .then(function(res) { return res.json(); })
                 .then(function(channels) {
                     if (channels && channels.length > 0) {
-                        allChannels = channels;
+                        allChannels = mergeCustomChannels(channels);
                         storage.setItem('iptv_channels', JSON.stringify(allChannels));
                         updateCategoryTabs(allChannels);
                         renderChannels(allChannels);
                         
-                        // Select current channel if playing
                         if (currentChannelId) {
                             var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
                             if (currentCh) {
@@ -1423,7 +1957,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             }
                         }
                     }
-                    // Trigger client-side scraping to update backend with freshest tokens
                     performClientScrape();
                 })
                 .catch(function(e) {

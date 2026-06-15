@@ -12,7 +12,7 @@ load_dotenv()
 GIST_ID = os.getenv("GITHUB_GIST_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 # We will write both files so both extensions work
-GIST_FILENAMES = ["playlist.m3u", "playlist.m3u8"]
+GIST_FILENAMES = ["playlist.m3u", "playlist.m3u8", "channels.json"]
 
 def scrape_channels():
     url = "https://ajobtv.com/"
@@ -59,7 +59,8 @@ def scrape_channels():
                                 "name": name,
                                 "logo": logo,
                                 "url": play_url,
-                                "category": category
+                                "category": category,
+                                "scraped_at": int(time.time())
                             })
                     if channels:
                         print(f"Scraped {len(channels)} channels from JS array.")
@@ -87,7 +88,8 @@ def scrape_channels():
                 "name": name,
                 "logo": "",
                 "url": clean_url,
-                "category": "Live TV"
+                "category": "Live TV",
+                "scraped_at": int(time.time())
             })
             
         print(f"Scraped {len(channels)} channels from raw regex fallback.")
@@ -96,13 +98,35 @@ def scrape_channels():
         print(f"Scraping error: {e}")
         return []
 
+DEFAULT_4K_CHANNELS = [
+    {
+        "id": "golive_4k",
+        "name": "GoLive 4K",
+        "logo": "https://img.icons8.com/color/144/4k-resolution.png",
+        "url": "http://203.18.159.180/GoLIve/index.m3u8",
+        "category": "4K",
+        "scraped_at": int(time.time())
+    },
+    {
+        "id": "hdr_4k",
+        "name": "HDR 4K",
+        "logo": "https://img.icons8.com/color/144/4k-resolution.png",
+        "url": "http://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
+        "category": "4K",
+        "scraped_at": int(time.time())
+    }
+]
+
 def generate_m3u(channels):
     m3u_content = "#EXTM3U\n"
     for ch in channels:
         logo_url = ""
         logo_val = ch.get("logo", "")
         if logo_val:
-            logo_url = f"https://ajobtv.com/assets/images/channels/{logo_val}"
+            if logo_val.startswith("http"):
+                logo_url = logo_val
+            else:
+                logo_url = f"https://ajobtv.com/assets/images/channels/{logo_val}"
             
         logo_part = f' tvg-logo="{logo_url}"' if logo_url else ''
         category = ch.get("category", "Live TV")
@@ -115,14 +139,10 @@ def generate_m3u(channels):
         )
     return m3u_content
 
-def update_gist(m3u_data):
+def update_gist(m3u_data, channels_data):
     if not GITHUB_TOKEN or not GIST_ID:
         print("\nERROR: GITHUB_TOKEN or GITHUB_GIST_ID not set in environment or .env file.")
         print("Please configure them to upload directly to GitHub Gist.")
-        # Write to a local file as fallback
-        with open("playlist_local.m3u", "w", encoding="utf-8") as f:
-            f.write(m3u_data)
-        print("Saved playlist locally to 'playlist_local.m3u' instead.")
         return False
         
     url = f"https://api.github.com/gists/{GIST_ID}"
@@ -131,16 +151,18 @@ def update_gist(m3u_data):
         "Accept": "application/vnd.github.v3+json"
     }
     
-    files_payload = {}
-    for filename in GIST_FILENAMES:
-        files_payload[filename] = {"content": m3u_data}
+    files_payload = {
+        "playlist.m3u": {"content": m3u_data},
+        "playlist.m3u8": {"content": m3u_data},
+        "channels.json": {"content": json.dumps(channels_data, indent=2)}
+    }
         
     payload = {
         "description": "Velocity IPTV Live M3U Playlist - Auto Updated",
         "files": files_payload
     }
     
-    print(f"Updating Gist {GIST_ID} with both files...")
+    print(f"Updating Gist {GIST_ID} with playlist and channel JSON data...")
     try:
         response = requests.patch(url, headers=headers, json=payload)
         if response.status_code == 200:
@@ -150,7 +172,6 @@ def update_gist(m3u_data):
             print("-" * 60)
             for filename in GIST_FILENAMES:
                 raw_url = data["files"][filename]["raw_url"]
-                # Clean versioned part from url so it's always the latest permanent link
                 clean_url = re.sub(r'/raw/[a-f0-9]+/', '/raw/', raw_url)
                 print(f"{filename}: {clean_url}")
             print("-" * 60)
@@ -169,8 +190,14 @@ def main():
         print("Failed to scrape channels. Aborting.")
         return
         
+    # Merge default 4K channels dynamically
+    existing_ids = {ch["id"] for ch in channels}
+    for ch in DEFAULT_4K_CHANNELS:
+        if ch["id"] not in existing_ids:
+            channels.append(ch)
+            
     m3u_content = generate_m3u(channels)
-    update_gist(m3u_content)
+    update_gist(m3u_content, channels)
 
 if __name__ == "__main__":
     main()
