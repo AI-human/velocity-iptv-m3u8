@@ -138,8 +138,8 @@ def get_default_4k_channels():
             "id": "hdr_4k",
             "name": "HDR 4K",
             "logo": "https://img.icons8.com/color/144/4k-resolution.png",
-            "url": "http://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
-            "stream_source": "http://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
+            "url": "https://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
+            "stream_source": "https://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8",
             "category": "4K",
             "scraped_at": int(time.time())
         }
