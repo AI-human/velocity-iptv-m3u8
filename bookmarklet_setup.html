@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Scraper Setup</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f4f4f9;
+            color: #333;
+        }
+        h1 { text-align: center; color: #2c3e50; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label { font-weight: bold; display: block; margin-top: 10px; }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover { background: #0056b3; }
+        #result-area { display: none; margin-top: 20px; }
+        .bookmarklet-btn {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+        }
+        .code-block {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .step { font-weight: bold; color: #d35400; }
+    </style>
+</head>
+<body>
+
+    <h1>📱 IPTV Phone Scraper</h1>
+    
+    <div class="card">
+        <p>This page generates a <b>Bookmarklet</b> (a small script saved as a bookmark) that you can tap on your phone while visiting <code>ajobtv.com</code> to instantly refresh your playlist.</p>
+        
+        <label>GitHub Gist ID:</label>
+        <input type="text" id="gist-id" placeholder="e.g. 1a2b3c4d5e6f7g8h9i0j">
+        
+        <label>GitHub Token (with gist scope):</label>
+        <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        
+        <button id="generate-btn">Generate Bookmarklet</button>
+    </div>
+
+    <div class="card" id="result-area">
+        <h2 style="color: #28a745;">✅ Ready!</h2>
+        
+        <h3>Desktop Setup (Chrome/Firefox)</h3>
+        <p>Drag this green button to your bookmarks bar:</p>
+        <a href="#" id="desktop-bookmarklet" class="bookmarklet-btn">🔄 Refresh IPTV</a>
+        
+        <hr style="margin: 20px 0;">
+        
+        <h3>Android Setup (Chrome)</h3>
+        <p><span class="step">Step 1:</span> Copy the code below.</p>
+        <div class="code-block" id="mobile-code"></div>
+        <button id="copy-btn" style="background: #6c757d; margin-top: 10px;">📋 Copy Code</button>
+        
+        <p><span class="step">Step 2:</span> Bookmark any random page right now (tap the ⭐ in Chrome menu).</p>
+        <p><span class="step">Step 3:</span> Edit that new bookmark. Change its Name to "<b>🔄 Refresh IPTV</b>" and paste the copied code into the <b>URL</b> field.</p>
+        
+        <hr style="margin: 20px 0;">
+        
+        <h3>How to Use It at 3 AM 🌙</h3>
+        <p>1. Open <b>ajobtv.com</b> on your phone.</p>
+        <p>2. Tap the Chrome address bar, type "Refresh IPTV", and tap the bookmark suggestion that appears with the star ⭐.</p>
+        <p>3. A green popup will say "Playlist updated!"</p>
+    </div>
+
+    <script>
+        // The raw JS logic
+        const rawScript = `(function(){var GIST_ID='__GIST_ID__';var GITHUB_TOKEN='__GITHUB_TOKEN__';function showToast(msg,isError){var existing=document.getElementById('iptv-toast');if(existing)existing.remove();var toast=document.createElement('div');toast.id='iptv-toast';toast.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:14px 24px;border-radius:12px;color:#fff;font-size:15px;font-weight:600;z-index:999999;font-family:sans-serif;text-align:center;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.3);backdrop-filter:blur(10px);animation:slideDown 0.3s ease;'+(isError?'background:rgba(220,53,69,0.95);':'background:rgba(40,167,69,0.95);');toast.textContent=msg;var style=document.createElement('style');style.textContent='@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';document.head.appendChild(style);document.body.appendChild(toast);setTimeout(function(){toast.remove();style.remove();},5000);}function extractChannels(){var scripts=document.querySelectorAll('script');var channelsData=null;for(var i=0;i<scripts.length;i++){var text=scripts[i].textContent||scripts[i].innerText||'';var match=text.match(/const\\s+channels\\s*=\\s*(\\[[\\s\\S]*?\\]);\\s*\\n/);if(!match){match=text.match(/var\\s+channels\\s*=\\s*(\\[[\\s\\S]*?\\]);\\s*\\n/);}if(!match){match=text.match(/let\\s+channels\\s*=\\s*(\\[[\\s\\S]*?\\]);\\s*\\n/);}if(match){try{channelsData=JSON.parse(match[1]);break;}catch(e){try{channelsData=(new Function('return '+match[1]))();break;}catch(e2){console.log('Parse error:',e2);}}}}if(!channelsData||channelsData.length===0){var cards=document.querySelectorAll('.channel-card[data-url]');if(cards.length>0){channelsData=[];cards.forEach(function(card){var url=card.getAttribute('data-url')||'';var name=card.getAttribute('data-name')||'Unknown';var img=card.querySelector('img');var logo='';if(img){var src=img.getAttribute('src')||'';logo=src.split('/').pop();}if(url){channelsData.push({name:name,play_url:url,logo:logo,category_name:'Live TV'});}});}}return channelsData;}function generateM3U(channels){var m3u='#EXTM3U\\n';channels.forEach(function(ch){var name=(ch.name||'Unknown').trim();var playUrl=(ch.play_url||'').replace(/\\\\\\//g,'/');var logo=ch.logo||'';var category=ch.category_name||'Live TV';if(!playUrl)return;if(playUrl.indexOf('token=')!==-1&&playUrl.indexOf('remote=')===-1){var sep=playUrl.indexOf('?')!==-1?'&':'?';playUrl+=sep+'remote=no_check_ip';}var logoUrl='';if(logo){if(logo.indexOf('http')===0){logoUrl=logo;}else{logoUrl='https://ajobtv.com/assets/images/channels/'+logo;}}var logoPart=logoUrl?' tvg-logo="'+logoUrl+'"':'';var chId=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');m3u+='#EXTINF:-1 tvg-id="'+chId+'"'+logoPart+' tvg-name="'+name+'" group-title="'+category+'",'+name+'\\n';m3u+=playUrl+'\\n';});return m3u;}function generateChannelsJSON(channels){var result=[];channels.forEach(function(ch){var name=(ch.name||'Unknown').trim();var playUrl=(ch.play_url||'').replace(/\\\\\\//g,'/');var logo=ch.logo||'';var category=ch.category_name||'Live TV';if(!playUrl)return;if(playUrl.indexOf('token=')!==-1&&playUrl.indexOf('remote=')===-1){var sep=playUrl.indexOf('?')!==-1?'&':'?';playUrl+=sep+'remote=no_check_ip';}var chId=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');result.push({id:chId,name:name,logo:logo,url:playUrl,category:category,scraped_at:Math.floor(Date.now()/1000)});});var existingIds={};result.forEach(function(ch){existingIds[ch.id]=true;});var default4K=[{id:'golive_4k',name:'GoLive 4K',logo:'https://img.icons8.com/color/144/4k-resolution.png',url:'http://203.18.159.180/GoLIve/index.m3u8',category:'4K',scraped_at:Math.floor(Date.now()/1000)},{id:'hdr_4k',name:'HDR 4K',logo:'https://img.icons8.com/color/144/4k-resolution.png',url:'https://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8',category:'4K',scraped_at:Math.floor(Date.now()/1000)}];default4K.forEach(function(ch){if(!existingIds[ch.id]){result.push(ch);}});return result;}function updateGist(m3uData,channelsJSON){showToast('⏳ Pushing to Gist...');var payload={description:'Velocity IPTV Live M3U Playlist - Auto Updated',files:{'playlist.m3u':{content:m3uData},'playlist.m3u8':{content:m3uData},'channels.json':{content:JSON.stringify(channelsJSON,null,2)}}};fetch('https://api.github.com/gists/'+GIST_ID,{method:'PATCH',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(response){if(!response.ok){throw new Error('HTTP '+response.status);}return response.json();}).then(function(data){showToast('✅ Playlist updated! '+channelsJSON.length+' channels pushed to Gist');}).catch(function(err){showToast('❌ Failed: '+err.message,true);});}try{if(window.location.hostname.indexOf('ajobtv')===-1){showToast('❌ Open ajobtv.com first, then tap this bookmarklet!',true);return;}showToast('🔄 Extracting channels...');var channels=extractChannels();if(!channels||channels.length===0){showToast('❌ No channels found on this page!',true);return;}var m3u=generateM3U(channels);var channelsJSON=generateChannelsJSON(channels);var m3uWith4K=generateM3U(channels);var default4K=[{name:'GoLive 4K',play_url:'http://203.18.159.180/GoLIve/index.m3u8',logo:'https://img.icons8.com/color/144/4k-resolution.png',category_name:'4K'},{name:'HDR 4K',play_url:'https://go8knm.optikl.ink/OT/live/HDR/HDR/1950411.m3u8',logo:'https://img.icons8.com/color/144/4k-resolution.png',category_name:'4K'}];var existingNames={};channels.forEach(function(ch){existingNames[(ch.name||'').toLowerCase()]=true;});default4K.forEach(function(ch){if(!existingNames[ch.name.toLowerCase()]){m3uWith4K+='#EXTINF:-1 tvg-id="'+ch.name.toLowerCase().replace(/[^a-z0-9]+/g,'_')+'" tvg-logo="'+ch.logo+'" tvg-name="'+ch.name+'" group-title="'+ch.category_name+'",'+ch.name+'\\n'+ch.play_url+'\\n';}});updateGist(m3uWith4K,channelsJSON);}catch(e){showToast('❌ Error: '+e.message,true);}})();`;
+
+        document.getElementById('generate-btn').addEventListener('click', function() {
+            const gistId = document.getElementById('gist-id').value.trim();
+            const token = document.getElementById('github-token').value.trim();
+            
+            if (!gistId || !token) {
+                alert("Please enter both Gist ID and GitHub Token");
+                return;
+            }
+
+            // Replace placeholders
+            let finalCode = rawScript.replace('__GIST_ID__', gistId).replace('__GITHUB_TOKEN__', token);
+            
+            // Create javascript: URL
+            const bookmarkletUrl = 'javascript:' + encodeURIComponent(finalCode);
+            
+            // Update UI
+            document.getElementById('desktop-bookmarklet').href = bookmarkletUrl;
+            document.getElementById('mobile-code').textContent = bookmarkletUrl;
+            document.getElementById('result-area').style.display = 'block';
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', function() {
+            const code = document.getElementById('mobile-code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.getElementById('copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#6c757d';
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
