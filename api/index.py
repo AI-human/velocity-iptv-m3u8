@@ -633,6 +633,17 @@ def _proxy_m3u8(target_url):
         print(f"Error proxying stream from {target_url}: {e}")
         return None
 
+@app.route("/setup")
+def setup_page():
+    try:
+        setup_path = os.path.join(os.path.dirname(__file__), "..", "bookmarklet_setup.html")
+        if os.path.exists(setup_path):
+            with open(setup_path, "r", encoding="utf-8") as f:
+                return f.read()
+    except Exception as e:
+        return f"Error loading setup page: {e}", 500
+    return "Setup page not found", 404
+
 @app.route("/")
 def index():
     resp = make_response(render_template_string(HTML_TEMPLATE))
@@ -1224,6 +1235,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Get Direct Stream Link</a>
                     <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Download M3U8 Playlist</a>
                     <button id="refresh-tokens-btn" class="btn btn-blue">Refresh Stream Tokens</button>
+                    <a href="/setup" class="btn" style="background: linear-gradient(135deg, #007aff, #0056b3); color: white;">Setup Mobile Scraper (Bookmarklet)</a>
                     <button id="add-4k-btn" class="btn" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #000; font-weight: 700; border: none; box-shadow: 0 0 10px rgba(255,215,0,0.2);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; stroke: #000;">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
