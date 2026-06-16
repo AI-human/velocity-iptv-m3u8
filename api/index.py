@@ -157,7 +157,8 @@ def load_channels(force=False):
     
     # If scraping fails (blocked on Vercel), load from the GitHub Gist
     if not channels:
-        gist_url = "https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/channels.json"
+        gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
+        gist_url = f"https://gist.githubusercontent.com/raw/{gist_id}/channels.json"
         print(f"Direct scrape failed or blocked. Fetching from Gist: {gist_url}")
         try:
             resp = requests.get(gist_url, timeout=10)
@@ -372,8 +373,8 @@ def update_channels_data():
 @app.route("/playlist")
 def get_m3u_playlist():
     path = request.path
-    filename = "playlist.m3u8" if path.endswith(".m3u8") else "playlist.m3u"
-    gist_url = f"https://gist.githubusercontent.com/AI-human/0eec8e53de265b9ef6e9bb7edb30f6bb/raw/{filename}"
+    gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
+    gist_url = f"https://gist.githubusercontent.com/raw/{gist_id}/{filename}"
     
     print(f"IPTV client requested playlist. Proxying from Gist raw file: {gist_url}")
     try:
