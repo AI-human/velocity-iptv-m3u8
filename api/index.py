@@ -373,6 +373,7 @@ def update_channels_data():
 @app.route("/playlist")
 def get_m3u_playlist():
     path = request.path
+    filename = "playlist.m3u8" if path.endswith(".m3u8") else "playlist.m3u"
     gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
     gist_url = f"https://gist.githubusercontent.com/raw/{gist_id}/{filename}"
     
