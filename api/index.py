@@ -307,7 +307,66 @@ def refresh_channels():
         "channels": channels
     })
 
-
+@app.route("/api/channels/update", methods=["POST"])
+def update_channels_data():
+    global cached_channels, last_cache_time
+    try:
+        data = request.json
+        if not data or "channels" not in data:
+            return jsonify({"status": "error", "message": "Invalid payload"}), 400
+        
+        channels = data["channels"]
+        if not isinstance(channels, list) or len(channels) == 0:
+            return jsonify({"status": "error", "message": "Channels list is empty"}), 400
+            
+        base_url = get_base_url()
+        local_logos = get_local_logos()
+        
+        processed_channels = []
+        for ch in channels:
+            name = ch.get("name", "Unknown").strip()
+            play_url = ch.get("url", "").strip()
+            logo = ch.get("logo", "").strip()
+            stream_source = ch.get("stream_source", "").strip()
+            category = ch.get("category", "Live TV").strip()
+            
+            if play_url:
+                if "token=" in play_url and "remote=" not in play_url:
+                    sep = "&" if "?" in play_url else "?"
+                    play_url += f"{sep}remote=no_check_ip"
+                    
+                ch_id = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+                
+                logo_val = os.path.basename(logo)
+                logo_lower = logo_val.lower()
+                if logo_lower in local_logos:
+                    logo_url = f"{base_url}static/logos/{local_logos[logo_lower]}"
+                elif logo:
+                    logo_url = f"https://ajobtv.com/assets/images/channels/{logo_val}"
+                else:
+                    logo_url = ""
+                    
+                processed_channels.append({
+                    "id": ch_id,
+                    "name": name,
+                    "logo": logo_url,
+                    "url": play_url,
+                    "stream_source": stream_source or play_url.split('?')[0],
+                    "category": category,
+                    "scraped_at": int(time.time())
+                })
+                
+        if processed_channels:
+            cached_channels = processed_channels
+            last_cache_time = time.time()
+            print(f"Successfully updated {len(processed_channels)} channels via browser scraping.")
+            # Return channels directly in response — avoids Vercel cold-start cache miss on subsequent GET
+            return jsonify({"status": "success", "count": len(processed_channels), "channels": processed_channels})
+    except Exception as e:
+        print(f"Error updating channels from client: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+        
+    return jsonify({"status": "error", "message": "No valid channels processed"}), 400
 
 @app.route("/playlist.m3u")
 @app.route("/playlist.m3u8")
@@ -575,7 +634,16 @@ def _proxy_m3u8(target_url):
         print(f"Error proxying stream from {target_url}: {e}")
         return None
 
-
+@app.route("/setup")
+def setup_page():
+    try:
+        setup_path = os.path.join(os.path.dirname(__file__), "..", "bookmarklet_setup.html")
+        if os.path.exists(setup_path):
+            with open(setup_path, "r", encoding="utf-8") as f:
+                return f.read()
+    except Exception as e:
+        return f"Error loading setup page: {e}", 500
+    return "Setup page not found", 404
 
 @app.route("/")
 def index():
@@ -1167,7 +1235,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <a id="generic-intent-link" href="#" class="btn btn-secondary">Open in External Player (VLC)</a>
                     <a id="direct-stream-link" href="#" class="btn btn-green" target="_blank">Get Direct Stream Link</a>
                     <a href="/playlist.m3u" class="btn btn-secondary" target="_blank">Download M3U8 Playlist</a>
-
+                    <button id="refresh-tokens-btn" class="btn btn-blue">Refresh Stream Tokens</button>
+                    <a href="/setup" class="btn" style="background: linear-gradient(135deg, #007aff, #0056b3); color: white;">Setup Mobile Scraper (Bookmarklet)</a>
                     <button id="add-4k-btn" class="btn" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #000; font-weight: 700; border: none; box-shadow: 0 0 10px rgba(255,215,0,0.2);">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px; stroke: #000;">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -1226,6 +1295,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         var playerWrapper = document.getElementById('player-wrapper');
         var playerPlaceholder = document.getElementById('player-placeholder');
         var playBrowserBtn = document.getElementById('play-browser-btn');
+        var refreshBtn = document.getElementById('refresh-tokens-btn');
         var searchInput = document.getElementById('search-input');
         
         var add4kBtn = document.getElementById('add-4k-btn');
@@ -1328,7 +1398,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
                                 if (data.response && data.response.code === 403) {
-                                    showToast("Playback forbidden (403). Run scrape.py in Termux on your phone to refresh tokens.", "error");
+                                    showToast("Token expired. Auto-refreshing playlist...", "warning");
+                                    autoRefreshAndPlay();
                                 } else {
                                     console.log("Fatal HLS network error, retrying...", data);
                                     hls.startLoad();
@@ -1352,6 +1423,184 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
+        function fetchServerRefresh(onComplete, onError) {
+            fetch('/api/channels/refresh')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data && data.channels && data.channels.length > 0) {
+                        allChannels = data.channels;
+                        storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                        updateCategoryTabs(allChannels);
+                        renderChannels(allChannels);
+                        if (onComplete) onComplete(allChannels);
+                    } else {
+                        if (onError) onError("Server-side refresh failed.");
+                    }
+                })
+                .catch(function(e) { if (onError) onError(e); });
+        }
+
+        // --- Client-side CORS proxy scrape with multi-proxy fallback ---
+        var CORS_PROXIES = [
+            "https://corsproxy.io/?https://ajobtv.com/",
+            "https://api.allorigins.win/raw?url=https%3A%2F%2Fajobtv.com%2F",
+            "https://api.codetabs.com/v1/proxy?quest=https://ajobtv.com/",
+            "https://thingproxy.freeboard.io/fetch/https://ajobtv.com/"
+        ];
+
+        function parseChannelsFromHtml(html) {
+            // Fix: use single-escaped regex (\\s becomes \s in JS)
+            var patterns = [
+                /(?:const|var|let)\s+channels\s*=\s*(\[[\s\S]*?\]);/,
+                /channels\s*:\s*(\[[\s\S]*?\])[,\s}]/
+            ];
+            for (var p = 0; p < patterns.length; p++) {
+                var match = html.match(patterns[p]);
+                if (match) {
+                    try {
+                        var channelsData = JSON.parse(match[1]);
+                        var formatted = channelsData.map(function(ch) {
+                            var url = (ch.play_url || "").replace(/\\\//g, '/');
+                            if (url && url.indexOf('token=') !== -1 && url.indexOf('remote=') === -1) {
+                                url += (url.indexOf('?') !== -1 ? '&' : '?') + 'remote=no_check_ip';
+                            }
+                            return {
+                                name: ch.name || ch.channel_name || "Unknown",
+                                url: url,
+                                logo: ch.logo || ch.channel_logo || "",
+                                stream_source: (ch.stream_source || "").replace(/\\\//g, '/'),
+                                category: ch.category_name || "Live TV"
+                            };
+                        }).filter(function(ch) { return ch.url; });
+                        if (formatted.length > 0) return formatted;
+                    } catch(e) { continue; }
+                }
+            }
+            // Fallback: scan for raw m3u8 URLs
+            var m3uRegex = /(https?:\/\/[^\s"'`]+\.m3u8(?:[^\s"'`]*)?)/g;
+            var m3uMatches = html.match(m3uRegex);
+            if (m3uMatches && m3uMatches.length > 0) {
+                return m3uMatches.map(function(url, i) {
+                    url = url.replace(/\\\//g, '/');
+                    if (url.indexOf('token=') !== -1 && url.indexOf('remote=') === -1) {
+                        url += (url.indexOf('?') !== -1 ? '&' : '?') + 'remote=no_check_ip';
+                    }
+                    return { name: "Channel " + (i+1), url: url, logo: "", stream_source: url.split('?')[0], category: "Live TV" };
+                });
+            }
+            return [];
+        }
+
+        function submitChannelsToBackend(formatted, onComplete, onError) {
+            if (!formatted || formatted.length === 0) { if (onError) onError("No valid channels to submit."); return; }
+            console.log("Client scraped " + formatted.length + " channels. Submitting to backend...");
+            fetch('/api/channels/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channels: formatted })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.status === 'success') {
+                    // Use channels returned directly in the response to avoid Vercel cold-start cache miss
+                    var updated = (res.channels && res.channels.length > 0) ? res.channels : null;
+                    if (updated) {
+                        allChannels = mergeCustomChannels(updated);
+                        storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                        updateCategoryTabs(allChannels);
+                        renderChannels(allChannels);
+                        if (onComplete) onComplete(allChannels);
+                    } else {
+                        // Fallback: try a GET in case in-memory cache persists (local dev)
+                        fetch('/api/channels')
+                            .then(function(r) { return r.json(); })
+                            .then(function(fetched) {
+                                if (fetched && fetched.length > 0) {
+                                    allChannels = mergeCustomChannels(fetched);
+                                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                                    updateCategoryTabs(allChannels);
+                                    renderChannels(allChannels);
+                                    if (onComplete) onComplete(allChannels);
+                                } else {
+                                    if (onError) onError("Failed to load updated channels.");
+                                }
+                            })
+                            .catch(function(e) { if (onError) onError(e); });
+                    }
+                } else {
+                    if (onError) onError("Update API returned status error.");
+                }
+            })
+            .catch(function(e) { if (onError) onError(e); });
+        }
+
+        function tryProxies(proxyList, idx, onComplete, onError) {
+            if (idx >= proxyList.length) {
+                console.warn("All CORS proxies failed. Falling back to server-side refresh...");
+                fetchServerRefresh(onComplete, onError);
+                return;
+            }
+            var proxyUrl = proxyList[idx];
+            console.log("Trying CORS proxy [" + idx + "]: " + proxyUrl);
+            fetch(proxyUrl)
+                .then(function(res) {
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    return res.text();
+                })
+                .then(function(html) {
+                    var formatted = parseChannelsFromHtml(html);
+                    if (formatted.length > 0) {
+                        submitChannelsToBackend(formatted, onComplete, onError);
+                    } else {
+                        console.warn("Proxy [" + idx + "] returned HTML but no channels found. Trying next proxy...");
+                        tryProxies(proxyList, idx + 1, onComplete, onError);
+                    }
+                })
+                .catch(function(err) {
+                    console.warn("Proxy [" + idx + "] failed: " + err + ". Trying next...");
+                    tryProxies(proxyList, idx + 1, onComplete, onError);
+                });
+        }
+
+        function performClientScrape(onComplete, onError) {
+            console.log("Starting client-side scrape with " + CORS_PROXIES.length + " proxy fallbacks...");
+            tryProxies(CORS_PROXIES, 0, onComplete, onError);
+        }
+
+        function autoRefreshAndPlay() {
+            var originalText = refreshBtn.innerText;
+            refreshBtn.innerText = "Auto-Refreshing...";
+            refreshBtn.disabled = true;
+
+            performClientScrape(
+                function(channels) {
+                    var merged = mergeCustomChannels(channels);
+                    allChannels = merged;
+                    storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                    
+                    var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
+                    if (currentCh) {
+                        var card = document.getElementById('channel-card-' + currentCh.id);
+                        if (card) selectChannel(currentCh, card);
+                        var playUrl = currentCh.url;
+                        if (currentCh.url.indexOf('http://') === 0 && currentCh.url.indexOf('hd.ctghub.com') === -1) {
+                            playUrl = '/api/proxy?url=' + encodeURIComponent(currentCh.url);
+                        }
+                        loadBrowserPlayer(playUrl);
+                        showToast("Token refreshed! Resuming play...", "success");
+                    }
+                    refreshBtn.innerText = originalText;
+                    refreshBtn.disabled = false;
+                },
+                function(err) {
+                    console.error("Auto-refresh failed", err);
+                    showToast("Failed to refresh token automatically.", "error");
+                    refreshBtn.innerText = originalText;
+                    refreshBtn.disabled = false;
+                }
+            );
+        }
+
         playBrowserBtn.onclick = function() {
             if (currentUrl) {
                 var playUrl = currentUrl;
@@ -1363,6 +1612,40 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 showToast("Please select a channel first!", "warning");
             }
         };
+
+        if (refreshBtn) {
+            refreshBtn.onclick = function() {
+                var originalText = refreshBtn.innerText;
+                refreshBtn.innerText = "Refreshing...";
+                refreshBtn.disabled = true;
+                
+                performClientScrape(
+                    function(channels) {
+                        allChannels = mergeCustomChannels(channels);
+                        storage.setItem('iptv_channels', JSON.stringify(allChannels));
+                        updateCategoryTabs(allChannels);
+                        renderChannels(allChannels);
+                        
+                        if (currentChannelId) {
+                            var currentCh = allChannels.find(function(c) { return c.id === currentChannelId; });
+                            if (currentCh) {
+                                var card = document.getElementById('channel-card-' + currentCh.id);
+                                if (card) selectChannel(currentCh, card);
+                             }
+                        }
+                        showToast("All channels refreshed successfully!", "success");
+                        refreshBtn.innerText = originalText;
+                        refreshBtn.disabled = false;
+                    },
+                    function(err) {
+                        console.error("Manual refresh failed", err);
+                        showToast("Failed to refresh channels.", "error");
+                        refreshBtn.innerText = originalText;
+                        refreshBtn.disabled = false;
+                    }
+                );
+            };
+        }
 
         function handleImageError(img, name) {
             img.src = 'https://via.placeholder.com/150/14141c/ffffff?text=' + encodeURIComponent(name);
@@ -1689,13 +1972,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             }
                         }
                     }
+                    performClientScrape();
                 })
                 .catch(function(e) {
-                    console.error("Fetch channels error", e);
-                    if (!hasLoadedFromCache) {
-                        document.getElementById('channels-grid').innerHTML = 
-                            '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Failed to load channels from server.</div>';
-                    }
+                    console.error("Fetch channels error, attempting client scrape...", e);
+                    performClientScrape(
+                        function() { /* Succeeded, UI already rendered */ },
+                        function() {
+                            if (!hasLoadedFromCache) {
+                                document.getElementById('channels-grid').innerHTML = 
+                                    '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Failed to load channels from server.</div>';
+                            }
+                        }
+                    );
                 });
         }
         init();
