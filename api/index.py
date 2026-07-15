@@ -145,12 +145,156 @@ def get_default_4k_channels():
         }
     ]
 
+def generate_m3u_for_gist(channels):
+    m3u_content = "#EXTM3U\n"
+    for ch in channels:
+        logo_url = ch.get("logo", "")
+        logo_part = f' tvg-logo="{logo_url}"' if logo_url else ''
+        category = ch.get("category", "Live TV")
+        stream_url = ch.get("url", "")
+        
+        m3u_content += (
+            f'#EXTINF:-1 tvg-id="{ch["id"]}"{logo_part} '
+            f'tvg-name="{ch["name"]}" group-title="{category}",{ch["name"]}\n'
+            f'{stream_url}\n'
+        )
+    return m3u_content
+
+def update_gist_via_git(m3u_data, channels_data):
+    import subprocess
+    import shutil
+    print("\nAttempting to update Gist via Git + SSH...")
+    gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
+    if not gist_id:
+        print("GIST_ID is not set. Cannot update via Git.")
+        return False
+        
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.path.join(base_dir, f"temp_gist_{int(time.time())}")
+    
+    try:
+        clone_cmd = ["git", "clone", f"git@gist.github.com:{gist_id}.git", temp_dir]
+        env = os.environ.copy()
+        env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o BatchMode=yes"
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        
+        result = subprocess.run(clone_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            print(f"Failed to clone Gist repository: {result.stderr}")
+            return False
+            
+        with open(os.path.join(temp_dir, "playlist.m3u"), "w", encoding="utf-8") as f:
+            f.write(m3u_data)
+        with open(os.path.join(temp_dir, "playlist.m3u8"), "w", encoding="utf-8") as f:
+            f.write(m3u_data)
+        with open(os.path.join(temp_dir, "channels.json"), "w", encoding="utf-8") as f:
+            json.dump(channels_data, f, indent=2)
+            
+        subprocess.run(["git", "config", "user.name", "Velocity IPTV Scraper"], cwd=temp_dir)
+        subprocess.run(["git", "config", "user.email", "scraper@velocity.local"], cwd=temp_dir)
+        
+        subprocess.run(["git", "add", "playlist.m3u", "playlist.m3u8", "channels.json"], cwd=temp_dir)
+        
+        status_res = subprocess.run(["git", "status", "--porcelain"], cwd=temp_dir, stdout=subprocess.PIPE, text=True)
+        if not status_res.stdout.strip():
+            print("No changes to push. Gist is already up to date.")
+            return True
+            
+        subprocess.run(["git", "commit", "-m", "Auto-update playlist & channel JSON data"], cwd=temp_dir)
+        
+        push_res = subprocess.run(["git", "push", "origin", "HEAD"], cwd=temp_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if push_res.returncode != 0:
+            print(f"Failed to push to Gist: {push_res.stderr}")
+            return False
+            
+        print("\nSUCCESS! Gist updated successfully via Git + SSH.")
+        return True
+    except Exception as e:
+        print(f"Error updating Gist via Git: {e}")
+        return False
+    finally:
+        if os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
+def push_to_gist_and_local(channels):
+    m3u_content = generate_m3u_for_gist(channels)
+    
+    # 1. Write locally
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(base_dir, "..", "playlist.m3u"), "w", encoding="utf-8") as f:
+            f.write(m3u_content)
+        with open(os.path.join(base_dir, "..", "playlist.m3u8"), "w", encoding="utf-8") as f:
+            f.write(m3u_content)
+        with open(os.path.join(base_dir, "..", "channels.json"), "w", encoding="utf-8") as f:
+            json.dump(channels, f, indent=2)
+        print("Successfully saved playlist and channel data to local files.")
+    except Exception as e:
+        print(f"Failed to save local cache files: {e}")
+
+    # 2. Update Gist via API
+    gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
+    github_token = os.getenv("GITHUB_TOKEN")
+    
+    if not github_token or not gist_id:
+        print("GITHUB_TOKEN or GIST_ID not set. Using Git+SSH fallback...")
+        return update_gist_via_git(m3u_content, channels)
+        
+    url = f"https://api.github.com/gists/{gist_id}"
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    files_payload = {
+        "playlist.m3u": {"content": m3u_content},
+        "playlist.m3u8": {"content": m3u_content},
+        "channels.json": {"content": json.dumps(channels, indent=2)}
+    }
+    
+    payload = {
+        "description": "Velocity IPTV Live M3U Playlist - Auto Updated",
+        "files": files_payload
+    }
+    
+    print(f"Updating Gist {gist_id} via API...")
+    try:
+        resp = requests.patch(url, headers=headers, json=payload)
+        if resp.status_code == 200:
+            print("SUCCESS! Gist updated successfully via GitHub API.")
+            return True
+        else:
+            print(f"Gist API update failed with status {resp.status_code}: {resp.text}")
+            print("Trying Git+SSH fallback...")
+            return update_gist_via_git(m3u_content, channels)
+    except Exception as e:
+        print(f"Gist API patch error: {e}")
+        print("Trying Git+SSH fallback...")
+        return update_gist_via_git(m3u_content, channels)
+
 def load_channels(force=False):
     global cached_channels, last_cache_time
     
     current_time = time.time()
     if not force and cached_channels and (current_time - last_cache_time < CACHE_EXPIRY):
         return cached_channels
+
+    # Try to load from local file first to speed up and prevent external dependency calls
+    local_channels_path = os.path.join(os.path.dirname(__file__), "..", "channels.json")
+    if not force and os.path.exists(local_channels_path):
+        try:
+            with open(local_channels_path, "r", encoding="utf-8") as f:
+                channels = json.load(f)
+                if channels:
+                    cached_channels = channels
+                    last_cache_time = current_time
+                    print(f"Loaded {len(channels)} channels from local JSON cache.")
+                    return channels
+        except Exception as e:
+            print(f"Failed to load channels from local JSON file: {e}")
 
     # Scrape fresh channels from ajobtv
     channels = scrape_all_channels()
@@ -165,6 +309,12 @@ def load_channels(force=False):
             if resp.status_code == 200:
                 channels = resp.json()
                 print(f"Successfully loaded {len(channels)} channels from Gist.")
+                # Save locally to cache it
+                try:
+                    with open(local_channels_path, "w", encoding="utf-8") as f:
+                        json.dump(channels, f, indent=2)
+                except Exception as e:
+                    print(f"Failed to write local cache: {e}")
             else:
                 print(f"Failed to load from Gist: HTTP {resp.status_code}")
         except Exception as e:
@@ -202,6 +352,7 @@ def load_channels(force=False):
                 
         cached_channels = channels
         last_cache_time = current_time
+        push_to_gist_and_local(channels)
         return cached_channels
         
     if cached_channels:
@@ -360,6 +511,7 @@ def update_channels_data():
             cached_channels = processed_channels
             last_cache_time = time.time()
             print(f"Successfully updated {len(processed_channels)} channels via browser scraping.")
+            push_to_gist_and_local(processed_channels)
             # Return channels directly in response — avoids Vercel cold-start cache miss on subsequent GET
             return jsonify({"status": "success", "count": len(processed_channels), "channels": processed_channels})
     except Exception as e:
@@ -374,10 +526,43 @@ def update_channels_data():
 def get_m3u_playlist():
     path = request.path
     filename = "playlist.m3u8" if path.endswith(".m3u8") else "playlist.m3u"
+    
+    # Try loading local playlist file first
+    m3u_content = None
+    local_playlist_path = os.path.join(os.path.dirname(__file__), "..", filename)
+    if os.path.exists(local_playlist_path):
+        print(f"IPTV client requested playlist. Loading from local file: {local_playlist_path}")
+        try:
+            with open(local_playlist_path, "r", encoding="utf-8") as f:
+                m3u_content = f.read().strip()
+        except Exception as e:
+            print(f"Error reading local playlist file: {e}")
+            
+    if m3u_content:
+        has_appended = False
+        for channel in get_default_4k_channels():
+            if channel["id"] not in m3u_content and channel["url"] not in m3u_content:
+                logo_part = f' tvg-logo="{channel.get("logo", "")}"' if channel.get("logo") else ''
+                category = channel.get("category", "4K")
+                stream_url = channel.get("url", "")
+                m3u_content += (
+                    f'\n#EXTINF:-1 tvg-id="{channel["id"]}"{logo_part} '
+                    f'tvg-name="{channel["name"]}" group-title="{category}",{channel["name"]}\n'
+                    f'{stream_url}'
+                )
+                has_appended = True
+        if has_appended:
+            m3u_content += "\n"
+            
+        response = Response(m3u_content, mimetype="application/x-mpegurl; charset=utf-8")
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+
+    # Fallback to Gist
     gist_id = os.getenv("GITHUB_GIST_ID", "0eec8e53de265b9ef6e9bb7edb30f6bb")
     gist_url = f"https://gist.githubusercontent.com/raw/{gist_id}/{filename}"
     
-    print(f"IPTV client requested playlist. Proxying from Gist raw file: {gist_url}")
+    print(f"Local playlist file not found. Proxying from Gist raw file: {gist_url}")
     try:
         resp = requests.get(gist_url, timeout=10)
         if resp.status_code == 200:
@@ -1425,7 +1610,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
 
         function fetchServerRefresh(onComplete, onError) {
-            fetch('/api/channels/refresh')
+            fetch('/api/channels/refresh?_t=' + Date.now())
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     if (data && data.channels && data.channels.length > 0) {
@@ -1513,7 +1698,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         if (onComplete) onComplete(allChannels);
                     } else {
                         // Fallback: try a GET in case in-memory cache persists (local dev)
-                        fetch('/api/channels')
+                        fetch('/api/channels?_t=' + Date.now())
                             .then(function(r) { return r.json(); })
                             .then(function(fetched) {
                                 if (fetched && fetched.length > 0) {
@@ -1956,7 +2141,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }
             }
 
-            fetch('/api/channels')
+            fetch('/api/channels?_t=' + Date.now())
                 .then(function(res) { return res.json(); })
                 .then(function(channels) {
                     if (channels && channels.length > 0) {

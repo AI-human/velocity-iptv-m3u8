@@ -8,3 +8,6 @@ google_translate.html
 iptv_externel/
 scrape.py
 scrape_console.js
+channels.json
+playlist.m3u
+playlist.m3u8

@@ -139,11 +139,71 @@ def generate_m3u(channels):
         )
     return m3u_content
 
+def update_gist_via_git(m3u_data, channels_data):
+    import subprocess
+    import shutil
+    print("\nAttempting to update Gist via Git + SSH...")
+    if not GIST_ID:
+        print("GIST_ID is not set in environment or .env file. Cannot update via Git.")
+        return False
+        
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.path.join(base_dir, f"temp_gist_{int(time.time())}")
+    
+    try:
+        # Clone Gist repo using SSH with HostKeyChecking bypassed and BatchMode enabled
+        clone_cmd = ["git", "clone", f"git@gist.github.com:{GIST_ID}.git", temp_dir]
+        env = os.environ.copy()
+        env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o BatchMode=yes"
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        
+        result = subprocess.run(clone_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            print(f"Failed to clone Gist repository: {result.stderr}")
+            return False
+            
+        # Write files
+        with open(os.path.join(temp_dir, "playlist.m3u"), "w", encoding="utf-8") as f:
+            f.write(m3u_data)
+        with open(os.path.join(temp_dir, "playlist.m3u8"), "w", encoding="utf-8") as f:
+            f.write(m3u_data)
+        with open(os.path.join(temp_dir, "channels.json"), "w", encoding="utf-8") as f:
+            json.dump(channels_data, f, indent=2)
+            
+        # Commit & Push
+        subprocess.run(["git", "config", "user.name", "Velocity IPTV Scraper"], cwd=temp_dir)
+        subprocess.run(["git", "config", "user.email", "scraper@velocity.local"], cwd=temp_dir)
+        
+        subprocess.run(["git", "add", "playlist.m3u", "playlist.m3u8", "channels.json"], cwd=temp_dir)
+        
+        status_res = subprocess.run(["git", "status", "--porcelain"], cwd=temp_dir, stdout=subprocess.PIPE, text=True)
+        if not status_res.stdout.strip():
+            print("No changes to push. Gist is already up to date.")
+            return True
+            
+        subprocess.run(["git", "commit", "-m", "Auto-update playlist & channel JSON data"], cwd=temp_dir)
+        
+        push_res = subprocess.run(["git", "push", "origin", "HEAD"], cwd=temp_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if push_res.returncode != 0:
+            print(f"Failed to push to Gist: {push_res.stderr}")
+            return False
+            
+        print("\nSUCCESS! Gist updated successfully via Git + SSH.")
+        return True
+    except Exception as e:
+        print(f"Error updating Gist via Git: {e}")
+        return False
+    finally:
+        if os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
 def update_gist(m3u_data, channels_data):
     if not GITHUB_TOKEN or not GIST_ID:
-        print("\nERROR: GITHUB_TOKEN or GITHUB_GIST_ID not set in environment or .env file.")
-        print("Please configure them to upload directly to GitHub Gist.")
-        return False
+        print("\nWARNING: GITHUB_TOKEN or GITHUB_GIST_ID not set. Trying Git+SSH fallback...")
+        return update_gist_via_git(m3u_data, channels_data)
         
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {
@@ -162,12 +222,12 @@ def update_gist(m3u_data, channels_data):
         "files": files_payload
     }
     
-    print(f"Updating Gist {GIST_ID} with playlist and channel JSON data...")
+    print(f"Updating Gist {GIST_ID} with playlist and channel JSON data via API...")
     try:
         response = requests.patch(url, headers=headers, json=payload)
         if response.status_code == 200:
             data = response.json()
-            print("\nSUCCESS! Gist updated successfully.")
+            print("\nSUCCESS! Gist updated successfully via API.")
             print(f"Your raw Playlist URLs for VLC/TV:")
             print("-" * 60)
             for filename in GIST_FILENAMES:
@@ -177,12 +237,14 @@ def update_gist(m3u_data, channels_data):
             print("-" * 60)
             return True
         else:
-            print(f"Failed to update Gist: HTTP {response.status_code}")
+            print(f"Failed to update Gist via API: HTTP {response.status_code}")
             print(response.text)
-            return False
+            print("Trying Git+SSH fallback...")
+            return update_gist_via_git(m3u_data, channels_data)
     except Exception as e:
-        print(f"Network error updating Gist: {e}")
-        return False
+        print(f"API network error updating Gist: {e}")
+        print("Trying Git+SSH fallback...")
+        return update_gist_via_git(m3u_data, channels_data)
 
 def main():
     channels = scrape_channels()
@@ -197,6 +259,20 @@ def main():
             channels.append(ch)
             
     m3u_content = generate_m3u(channels)
+    
+    # Save files locally
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(base_dir, "playlist.m3u"), "w", encoding="utf-8") as f:
+            f.write(m3u_content)
+        with open(os.path.join(base_dir, "playlist.m3u8"), "w", encoding="utf-8") as f:
+            f.write(m3u_content)
+        with open(os.path.join(base_dir, "channels.json"), "w", encoding="utf-8") as f:
+            json.dump(channels, f, indent=2)
+        print("\nSUCCESS: Saved 'playlist.m3u', 'playlist.m3u8', and 'channels.json' locally in root directory.")
+    except Exception as e:
+        print(f"Warning: Failed to save files locally: {e}")
+        
     update_gist(m3u_content, channels)
 
 if __name__ == "__main__":
